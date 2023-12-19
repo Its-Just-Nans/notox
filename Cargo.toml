@@ -1,6 +1,7 @@
 [package]
 name = "notox"
 version = "0.1.0"
+authors = ["n4n5"]
 edition = "2021"
 description = "no toxic names anymore"
 license = "MIT"
