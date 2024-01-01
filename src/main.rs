@@ -1,14 +1,28 @@
 use std::{
     ffi::{OsStr, OsString},
+    fs::DirEntry,
     path::PathBuf,
 };
+
 #[derive(Debug)]
-struct OptionnalFields {
-    dry_run: bool,
-    verbose: bool,
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+struct JsonFields {
+    json: bool,
+    json_pretty: bool,
+    json_error: bool,
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+
+struct OptionnalFields {
+    dry_run: bool,
+    verbose: bool,
+    json: JsonFields,
+}
+
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 struct CustomSingleResult {
     path: PathBuf,
     modified: Option<PathBuf>,
@@ -16,14 +30,75 @@ struct CustomSingleResult {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 struct CustomResult {
     res: Vec<CustomSingleResult>,
 }
 
+struct ResultArgsParse {
+    fields: OptionnalFields,
+    paths: Vec<PathBuf>,
+}
+
 fn clean_name(path: &OsStr, _options: &OptionnalFields) -> Result<OsString, String> {
+    // for each byte of the path if it's not ascii, replace it with _
+    let mut new_name = String::new();
+    let mut vec_grapheme = Vec::with_capacity(4);
     if let Some(e) = path.to_str() {
-        let cleaned_name = e.replace(" ", "_");
-        return Ok(OsString::from(cleaned_name));
+        for byte in e.bytes() {
+            if vec_grapheme.len() == 0 && byte < 128 {
+                match byte {
+                    0..=44 => {
+                        new_name.push('_');
+                    }
+                    46 => {
+                        new_name.push('.');
+                    }
+                    47 => {
+                        new_name.push('_');
+                    }
+                    58..=64 => {
+                        new_name.push('_');
+                    }
+                    91..=96 => {
+                        new_name.push('_');
+                    }
+                    123..=127 => {
+                        new_name.push('_');
+                    }
+                    _ => new_name.push(byte as char),
+                }
+            } else {
+                vec_grapheme.push(byte);
+                let first_byte = vec_grapheme[0];
+                if first_byte >= 192 && first_byte < 240 && vec_grapheme.len() == 2 {
+                    // two bytes grapheme
+                    let vec_to_string =
+                        String::from_utf8(vec_grapheme.clone()).unwrap_or("".to_string());
+                    match vec_to_string.as_str() {
+                        "é" | "è" | "ê" | "ë" | "É" | "È" | "Ê" | "Ë" => {
+                            new_name.push('e');
+                        }
+                        "à" | "â" | "ä" | "À" | "Â" | "Ä" => {
+                            new_name.push('a');
+                        }
+                        _ => {
+                            new_name.push('_');
+                        }
+                    }
+                    vec_grapheme.clear();
+                } else if first_byte >= 224 && first_byte < 240 && vec_grapheme.len() == 3 {
+                    // three bytes grapheme
+                    new_name.push('_');
+                    vec_grapheme.clear();
+                } else if first_byte >= 240 && vec_grapheme.len() == 4 {
+                    // four bytes grapheme
+                    new_name.push('_');
+                    vec_grapheme.clear();
+                }
+            }
+        }
+        return Ok(OsString::from(new_name));
     }
     return Err("Cannot clean name".to_string());
 }
@@ -34,7 +109,7 @@ fn clean_path(file_path: &PathBuf, options: &OptionnalFields) -> CustomSingleRes
         return CustomSingleResult {
             path: file_path.to_path_buf(),
             modified: None,
-            error: Some("No file name".to_string()),
+            error: None,
         };
     }
     let file_name = file_name.unwrap();
@@ -47,33 +122,32 @@ fn clean_path(file_path: &PathBuf, options: &OptionnalFields) -> CustomSingleRes
         };
     }
     let cleaned_name = cleaned_name.unwrap();
+    if &cleaned_name == &file_name {
+        return CustomSingleResult {
+            path: file_path.to_path_buf(),
+            modified: None,
+            error: None,
+        };
+    }
     let cleaned_path = file_path.with_file_name(cleaned_name.clone());
     if options.dry_run {
         return CustomSingleResult {
             path: file_path.to_path_buf(),
-            modified: if &cleaned_name != &file_name {
-                Some(cleaned_path)
-            } else {
-                None
-            },
-            error: Some("--dry-run enabled".to_string()),
+            modified: Some(cleaned_path),
+            error: Some("dry-run".to_string()),
         };
     }
     let is_renamed = std::fs::rename(file_path, &cleaned_path);
     if let Err(is_renamed) = is_renamed {
         return CustomSingleResult {
             path: file_path.to_path_buf(),
-            modified: None,
+            modified: Some(cleaned_path),
             error: Some(is_renamed.to_string()),
         };
     }
     return CustomSingleResult {
         path: file_path.to_path_buf(),
-        modified: if &cleaned_name != &file_name {
-            Some(cleaned_path)
-        } else {
-            None
-        },
+        modified: Some(cleaned_path),
         error: None,
     };
 }
@@ -86,15 +160,29 @@ fn is_directory(path: &PathBuf) -> bool {
     }
 }
 
+fn is_directory_entry(entry: &DirEntry) -> bool {
+    if let Ok(metadata) = entry.metadata() {
+        metadata.is_dir()
+    } else {
+        false
+    }
+}
+
 fn clean_directory(dir_path: &PathBuf, options: &OptionnalFields) -> CustomResult {
+    let mut dir_path = dir_path.clone();
     let mut res: CustomResult = CustomResult { res: Vec::new() };
-    let res_dir = clean_path(dir_path, &options);
+    let res_dir = clean_path(&dir_path, &options);
+    if res_dir.modified.is_some() && !options.dry_run && res_dir.error.is_none() {
+        if let Some(ref modified) = res_dir.modified {
+            dir_path = modified.clone();
+        }
+    }
     res.res.push(res_dir);
     if let Ok(entries) = std::fs::read_dir(&dir_path) {
         for entry in entries {
             if let Ok(entry) = entry {
                 let file_path = entry.path();
-                if is_directory(&file_path) {
+                if is_directory_entry(&entry) {
                     let e = clean_directory(&file_path, &options);
                     res.res.extend(e.res);
                 } else {
@@ -105,13 +193,13 @@ fn clean_directory(dir_path: &PathBuf, options: &OptionnalFields) -> CustomResul
                 res.res.push(CustomSingleResult {
                     path: dir_path.clone(),
                     modified: None,
-                    error: Some("Error while reading directory".to_string()),
+                    error: Some("Entry error".to_string()),
                 });
             }
         }
     } else {
         res.res.push(CustomSingleResult {
-            path: PathBuf::from(dir_path),
+            path: dir_path,
             modified: None,
             error: Some("Error while reading directory".to_string()),
         });
@@ -149,46 +237,133 @@ fn show_version() {
     println!("notox {} by {}", &VERSION, &AUTHORS)
 }
 
-fn main() -> Result<(), std::io::Error> {
-    // let args: Vec<String> = std::env::args().collect();
-    let args: Vec<String> = Vec::from(["notox".to_string(), "-n".to_string(), "*".to_string()]);
+fn parse_args() -> ResultArgsParse {
+    let args: Vec<String> = std::env::args().collect();
     if args.len() == 1 {
         println!("You need to provide at least one path");
         std::process::exit(1);
     }
 
-    let mut dry_run = false;
+    let mut dry_run = true;
     let mut verbose = true;
+    let mut json = false;
+    let mut json_pretty = false;
+    let mut json_error = false;
     let mut path_to_check: Vec<PathBuf> = Vec::new();
     for one_arg in &args[1..] {
-        if one_arg == "-n" {
-            dry_run = true;
-        } else if one_arg == "--dry-run" {
-            dry_run = true;
-        } else if one_arg == "-v" {
-            show_version()
-        } else if one_arg == "--version" {
-            show_version()
-        } else if one_arg == "-q" {
+        if one_arg == "-d" || one_arg == "--do" {
+            dry_run = false;
+        } else if one_arg == "-v" || one_arg == "--version" {
+            show_version();
+            std::process::exit(0);
+        } else if one_arg == "-p" || one_arg == "--json-pretty" {
+            json = true;
+            json_pretty = true;
+            verbose = false;
+        } else if one_arg == "-e" || one_arg == "--json-error" {
+            json = true;
+            json_error = true;
+            verbose = false;
+        } else if one_arg == "-j" || one_arg == "--json" {
+            json = true;
+            verbose = false;
+        } else if one_arg == "-q" || one_arg == "--quiet" {
             verbose = false;
         } else if one_arg == "*" {
             let paths = get_path_of_dir(".");
             path_to_check.extend(paths);
         } else {
-            path_to_check.push(PathBuf::from(one_arg))
+            if std::fs::metadata(one_arg).is_ok() {
+                path_to_check.push(PathBuf::from(one_arg))
+            } else {
+                if verbose {
+                    println!("Cannot find path: {}", one_arg);
+                }
+            }
         }
     }
     if path_to_check.len() == 0 {
         if verbose {
             println!("You need to provide at least one path !");
+        } else if json {
+            println!(r#"{{"error": "You need to provide at least one path"}}"#);
         }
         std::process::exit(1);
     }
-    let options = &OptionnalFields {
-        dry_run: dry_run,
-        verbose: verbose,
+    return ResultArgsParse {
+        fields: OptionnalFields {
+            dry_run,
+            verbose,
+            json: JsonFields {
+                json,
+                json_pretty,
+                json_error,
+            },
+        },
+        paths: path_to_check,
     };
-    if verbose {
+}
+
+fn print_output(options: &OptionnalFields, final_res: CustomResult) {
+    if options.verbose {
+        let len = final_res.res.len();
+        for one_res in final_res.res {
+            if one_res.error.is_some() {
+                println!(
+                    "{:?} -> {:?} : {}",
+                    one_res.path,
+                    one_res.path,
+                    one_res.error.unwrap()
+                );
+            } else if one_res.modified.is_some() {
+                if one_res.error.is_some() {
+                    println!(
+                        "{:?} -> {:?} : {}",
+                        one_res.path,
+                        one_res.modified.unwrap(),
+                        one_res.error.unwrap()
+                    );
+                } else {
+                    println!("{:?} -> {:?}", one_res.path, one_res.modified.unwrap());
+                }
+            }
+        }
+        println!("{} files checked", len);
+    } else if options.json.json {
+        #[cfg(feature = "serde")]
+        {
+            let vec_to_json = if options.json.json_error {
+                let mut vec_to_json: Vec<CustomSingleResult> = Vec::new();
+                for one_res in final_res.res {
+                    if one_res.error.is_some() {
+                        vec_to_json.push(one_res);
+                    }
+                }
+                vec_to_json
+            } else {
+                final_res.res
+            };
+            let json_string = if options.json.json_pretty {
+                serde_json::to_string_pretty(&vec_to_json)
+            } else {
+                serde_json::to_string(&vec_to_json)
+            };
+            if let Ok(stringed) = json_string {
+                println!("{}", stringed);
+            } else {
+                println!(r#"{{"error": "Cannot serialize result"}}"#);
+                std::process::exit(1);
+            }
+        }
+    }
+}
+
+fn main() -> Result<(), std::io::Error> {
+    let ResultArgsParse {
+        fields: options,
+        paths: path_to_check,
+    } = parse_args();
+    if options.verbose {
         println!("Running with options: {:?}", &options);
     }
     let mut final_res = CustomResult { res: Vec::new() };
@@ -196,12 +371,6 @@ fn main() -> Result<(), std::io::Error> {
         let one_res = clean(one_path, &options);
         final_res.res.extend(one_res.res);
     }
-    if options.verbose {
-        for one_res in final_res.res {
-            if one_res.modified.is_some() {
-                println!("{:?}", one_res);
-            }
-        }
-    }
+    print_output(&options, final_res);
     Ok(())
 }

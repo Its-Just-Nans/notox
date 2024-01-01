@@ -7,9 +7,14 @@ description = "no toxic names anymore"
 license = "MIT"
 homepage = "https://github.com/Its-Just-Nans/notox"
 repository = "https://github.com/Its-Just-Nans/notox"
-license-file = "LICENSE"
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
+
+[features]
+default = ["serde"]
+serde = ["dep:serde", "dep:serde_json"]
