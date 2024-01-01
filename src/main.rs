@@ -76,11 +76,70 @@ fn clean_name(path: &OsStr, _options: &OptionnalFields) -> Result<OsString, Stri
                     let vec_to_string =
                         String::from_utf8(vec_grapheme.clone()).unwrap_or("".to_string());
                     match vec_to_string.as_str() {
-                        "é" | "è" | "ê" | "ë" | "É" | "È" | "Ê" | "Ë" => {
+                        "À" | "Á" | "Â" | "Ã" | "Ä" | "Å" => {
+                            new_name.push('A');
+                        }
+                        "Æ" => {
+                            new_name.push('A');
+                            new_name.push('E');
+                        }
+                        "Ç" => {
+                            new_name.push('C');
+                        }
+                        "É" | "È" | "Ê" | "Ë" => {
+                            new_name.push('E');
+                        }
+                        "Ì" | "Í" | "Î" | "Ï" => {
+                            new_name.push('I');
+                        }
+                        "Ð" => {
+                            new_name.push('D');
+                        }
+                        "Ñ" => {
+                            new_name.push('N');
+                        }
+                        "Ò" | "Ó" | "Ô" | "Õ" | "Ö" => {
+                            new_name.push('O');
+                        }
+                        "×" => {
+                            new_name.push('x');
+                        }
+                        "Ù" | "Ú" | "Û" | "Ü" => {
+                            new_name.push('U');
+                        }
+                        "Ý" => {
+                            new_name.push('Y');
+                        }
+                        "ß" => {
+                            new_name.push('b');
+                        }
+                        "à" | "á" | "â" | "ä" | "ã" | "å" => {
+                            new_name.push('a');
+                        }
+                        "æ" => {
+                            new_name.push('a');
                             new_name.push('e');
                         }
-                        "à" | "â" | "ä" | "À" | "Â" | "Ä" => {
-                            new_name.push('a');
+                        "ç" => {
+                            new_name.push('c');
+                        }
+                        "é" | "è" | "ê" | "ë" => {
+                            new_name.push('e');
+                        }
+                        "ì" | "í" | "î" | "ï" => {
+                            new_name.push('i');
+                        }
+                        "ñ" => {
+                            new_name.push('n');
+                        }
+                        "ð" | "ò" | "ó" | "ô" | "õ" | "ö" => {
+                            new_name.push('o');
+                        }
+                        "ù" | "ú" | "û" | "ü" => {
+                            new_name.push('u');
+                        }
+                        "ý" | "ÿ" => {
+                            new_name.push('y');
                         }
                         _ => {
                             new_name.push('_');
