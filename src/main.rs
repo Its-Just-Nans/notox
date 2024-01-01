@@ -30,17 +30,6 @@ struct CustomSingleResult {
     error: Option<String>,
 }
 
-#[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
-struct CustomResult {
-    res: Vec<CustomSingleResult>,
-}
-
-struct ResultArgsParse {
-    fields: OptionnalFields,
-    paths: Vec<PathBuf>,
-}
-
 fn clean_name(path: &OsStr, _options: &OptionnalFields) -> OsString {
     // for each byte of the path if it's not ascii, replace it with _
     let mut new_name = String::new();
@@ -71,7 +60,15 @@ fn clean_name(path: &OsStr, _options: &OptionnalFields) -> OsString {
         } else {
             vec_grapheme.push(byte);
             let first_byte = vec_grapheme[0];
-            if first_byte >= 192 && first_byte < 240 && vec_grapheme.len() == 2 {
+            if first_byte >= 240 && vec_grapheme.len() == 4 {
+                // four bytes grapheme
+                new_name.push('_');
+                vec_grapheme.clear();
+            } else if first_byte >= 224 && vec_grapheme.len() == 3 {
+                // three bytes grapheme
+                new_name.push('_');
+                vec_grapheme.clear();
+            } else if first_byte >= 192 && vec_grapheme.len() == 2 {
                 // two bytes grapheme
                 let vec_to_string =
                     String::from_utf8(vec_grapheme.clone()).unwrap_or("".to_string());
@@ -146,14 +143,6 @@ fn clean_name(path: &OsStr, _options: &OptionnalFields) -> OsString {
                     }
                 }
                 vec_grapheme.clear();
-            } else if first_byte >= 224 && first_byte < 240 && vec_grapheme.len() == 3 {
-                // three bytes grapheme
-                new_name.push('_');
-                vec_grapheme.clear();
-            } else if first_byte >= 240 && vec_grapheme.len() == 4 {
-                // four bytes grapheme
-                new_name.push('_');
-                vec_grapheme.clear();
             }
         }
     }
@@ -217,29 +206,29 @@ fn is_directory_entry(entry: &DirEntry) -> bool {
     }
 }
 
-fn clean_directory(dir_path: &PathBuf, options: &OptionnalFields) -> CustomResult {
+fn clean_directory(dir_path: &PathBuf, options: &OptionnalFields) -> Vec<CustomSingleResult> {
     let mut dir_path = dir_path.clone();
-    let mut res: CustomResult = CustomResult { res: Vec::new() };
+    let mut res = Vec::new();
     let res_dir = clean_path(&dir_path, &options);
     if res_dir.modified.is_some() && !options.dry_run && res_dir.error.is_none() {
         if let Some(ref modified) = res_dir.modified {
             dir_path = modified.clone();
         }
     }
-    res.res.push(res_dir);
+    res.push(res_dir);
     if let Ok(entries) = std::fs::read_dir(&dir_path) {
         for entry in entries {
             if let Ok(entry) = entry {
                 let file_path = entry.path();
                 if is_directory_entry(&entry) {
                     let e = clean_directory(&file_path, &options);
-                    res.res.extend(e.res);
+                    res.extend(e);
                 } else {
                     let e = clean_path(&file_path, &options);
-                    res.res.push(e);
+                    res.push(e);
                 }
             } else {
-                res.res.push(CustomSingleResult {
+                res.push(CustomSingleResult {
                     path: dir_path.clone(),
                     modified: None,
                     error: Some("Entry error".to_string()),
@@ -247,7 +236,7 @@ fn clean_directory(dir_path: &PathBuf, options: &OptionnalFields) -> CustomResul
             }
         }
     } else {
-        res.res.push(CustomSingleResult {
+        res.push(CustomSingleResult {
             path: dir_path,
             modified: None,
             error: Some("Error while reading directory".to_string()),
@@ -256,14 +245,12 @@ fn clean_directory(dir_path: &PathBuf, options: &OptionnalFields) -> CustomResul
     return res;
 }
 
-fn clean(path: PathBuf, options: &OptionnalFields) -> CustomResult {
+fn clean(path: PathBuf, options: &OptionnalFields) -> Vec<CustomSingleResult> {
     if is_directory(&path) {
         return clean_directory(&path, &options);
     } else {
         let res = clean_path(&path, &options);
-        return CustomResult {
-            res: Vec::from([res]),
-        };
+        return Vec::from([res]);
     }
 }
 
@@ -286,7 +273,7 @@ fn show_version() {
     println!("notox {} by {}", &VERSION, &AUTHORS)
 }
 
-fn parse_args() -> ResultArgsParse {
+fn parse_args() -> (OptionnalFields, Vec<PathBuf>) {
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 1 {
         println!("You need to provide at least one path");
@@ -339,8 +326,8 @@ fn parse_args() -> ResultArgsParse {
         }
         std::process::exit(1);
     }
-    return ResultArgsParse {
-        fields: OptionnalFields {
+    return (
+        OptionnalFields {
             dry_run,
             verbose,
             json: JsonFields {
@@ -349,14 +336,14 @@ fn parse_args() -> ResultArgsParse {
                 json_error,
             },
         },
-        paths: path_to_check,
-    };
+        path_to_check,
+    );
 }
 
-fn print_output(options: &OptionnalFields, final_res: CustomResult) {
+fn print_output(options: &OptionnalFields, final_res: Vec<CustomSingleResult>) {
     if options.verbose {
-        let len = final_res.res.len();
-        for one_res in final_res.res {
+        let len = final_res.len();
+        for one_res in final_res {
             if one_res.modified.is_some() && one_res.error.is_some() {
                 println!(
                     "{:?} -> {:?} : {}",
@@ -376,14 +363,14 @@ fn print_output(options: &OptionnalFields, final_res: CustomResult) {
         {
             let vec_to_json = if options.json.json_error {
                 let mut vec_to_json: Vec<CustomSingleResult> = Vec::new();
-                for one_res in final_res.res {
+                for one_res in final_res {
                     if one_res.error.is_some() {
                         vec_to_json.push(one_res);
                     }
                 }
                 vec_to_json
             } else {
-                final_res.res
+                final_res
             };
             let json_string = if options.json.json_pretty {
                 serde_json::to_string_pretty(&vec_to_json)
@@ -401,17 +388,14 @@ fn print_output(options: &OptionnalFields, final_res: CustomResult) {
 }
 
 fn main() -> Result<(), std::io::Error> {
-    let ResultArgsParse {
-        fields: options,
-        paths: path_to_check,
-    } = parse_args();
+    let (options, path_to_check) = parse_args();
     if options.verbose {
         println!("Running with options: {:?}", &options);
     }
-    let mut final_res = CustomResult { res: Vec::new() };
+    let mut final_res = Vec::new();
     for one_path in path_to_check {
         let one_res = clean(one_path, &options);
-        final_res.res.extend(one_res.res);
+        final_res.extend(one_res);
     }
     print_output(&options, final_res);
     Ok(())
