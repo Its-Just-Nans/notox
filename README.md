@@ -23,3 +23,7 @@ notox --do my_path
 | `-j`, `--json`        | Output as JSON               |
 | `-p`, `--json-pretty` | Output as JSON (prettified)  |
 | `-e`, `--json-error`  | Output as JSON (only errors) |
+
+## License
+
+- [MIT](LICENSE)
