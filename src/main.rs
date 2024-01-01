@@ -1,6 +1,7 @@
 use std::{
     ffi::{OsStr, OsString},
     fs::DirEntry,
+    os::unix::ffi::OsStrExt,
     path::PathBuf,
 };
 
@@ -40,126 +41,123 @@ struct ResultArgsParse {
     paths: Vec<PathBuf>,
 }
 
-fn clean_name(path: &OsStr, _options: &OptionnalFields) -> Result<OsString, String> {
+fn clean_name(path: &OsStr, _options: &OptionnalFields) -> OsString {
     // for each byte of the path if it's not ascii, replace it with _
     let mut new_name = String::new();
     let mut vec_grapheme = Vec::with_capacity(4);
-    if let Some(e) = path.to_str() {
-        for byte in e.bytes() {
-            if vec_grapheme.len() == 0 && byte < 128 {
-                match byte {
-                    0..=44 => {
-                        new_name.push('_');
-                    }
-                    46 => {
-                        new_name.push('.');
-                    }
-                    47 => {
-                        new_name.push('_');
-                    }
-                    58..=64 => {
-                        new_name.push('_');
-                    }
-                    91..=96 => {
-                        new_name.push('_');
-                    }
-                    123..=127 => {
-                        new_name.push('_');
-                    }
-                    _ => new_name.push(byte as char),
-                }
-            } else {
-                vec_grapheme.push(byte);
-                let first_byte = vec_grapheme[0];
-                if first_byte >= 192 && first_byte < 240 && vec_grapheme.len() == 2 {
-                    // two bytes grapheme
-                    let vec_to_string =
-                        String::from_utf8(vec_grapheme.clone()).unwrap_or("".to_string());
-                    match vec_to_string.as_str() {
-                        "À" | "Á" | "Â" | "Ã" | "Ä" | "Å" => {
-                            new_name.push('A');
-                        }
-                        "Æ" => {
-                            new_name.push('A');
-                            new_name.push('E');
-                        }
-                        "Ç" => {
-                            new_name.push('C');
-                        }
-                        "É" | "È" | "Ê" | "Ë" => {
-                            new_name.push('E');
-                        }
-                        "Ì" | "Í" | "Î" | "Ï" => {
-                            new_name.push('I');
-                        }
-                        "Ð" => {
-                            new_name.push('D');
-                        }
-                        "Ñ" => {
-                            new_name.push('N');
-                        }
-                        "Ò" | "Ó" | "Ô" | "Õ" | "Ö" => {
-                            new_name.push('O');
-                        }
-                        "×" => {
-                            new_name.push('x');
-                        }
-                        "Ù" | "Ú" | "Û" | "Ü" => {
-                            new_name.push('U');
-                        }
-                        "Ý" => {
-                            new_name.push('Y');
-                        }
-                        "ß" => {
-                            new_name.push('b');
-                        }
-                        "à" | "á" | "â" | "ä" | "ã" | "å" => {
-                            new_name.push('a');
-                        }
-                        "æ" => {
-                            new_name.push('a');
-                            new_name.push('e');
-                        }
-                        "ç" => {
-                            new_name.push('c');
-                        }
-                        "é" | "è" | "ê" | "ë" => {
-                            new_name.push('e');
-                        }
-                        "ì" | "í" | "î" | "ï" => {
-                            new_name.push('i');
-                        }
-                        "ñ" => {
-                            new_name.push('n');
-                        }
-                        "ð" | "ò" | "ó" | "ô" | "õ" | "ö" => {
-                            new_name.push('o');
-                        }
-                        "ù" | "ú" | "û" | "ü" => {
-                            new_name.push('u');
-                        }
-                        "ý" | "ÿ" => {
-                            new_name.push('y');
-                        }
-                        _ => {
-                            new_name.push('_');
-                        }
-                    }
-                    vec_grapheme.clear();
-                } else if first_byte >= 224 && first_byte < 240 && vec_grapheme.len() == 3 {
-                    // three bytes grapheme
+    for byte in path.as_bytes().to_owned() {
+        if vec_grapheme.len() == 0 && byte < 128 {
+            match byte {
+                0..=44 => {
                     new_name.push('_');
-                    vec_grapheme.clear();
-                } else if first_byte >= 240 && vec_grapheme.len() == 4 {
-                    // four bytes grapheme
-                    new_name.push('_');
-                    vec_grapheme.clear();
                 }
+                46 => {
+                    new_name.push('.');
+                }
+                47 => {
+                    new_name.push('_');
+                }
+                58..=64 => {
+                    new_name.push('_');
+                }
+                91..=96 => {
+                    new_name.push('_');
+                }
+                123..=127 => {
+                    new_name.push('_');
+                }
+                _ => new_name.push(byte as char),
+            }
+        } else {
+            vec_grapheme.push(byte);
+            let first_byte = vec_grapheme[0];
+            if first_byte >= 192 && first_byte < 240 && vec_grapheme.len() == 2 {
+                // two bytes grapheme
+                let vec_to_string =
+                    String::from_utf8(vec_grapheme.clone()).unwrap_or("".to_string());
+                match vec_to_string.as_str() {
+                    "À" | "Á" | "Â" | "Ã" | "Ä" | "Å" => {
+                        new_name.push('A');
+                    }
+                    "Æ" => {
+                        new_name.push('A');
+                        new_name.push('E');
+                    }
+                    "Ç" => {
+                        new_name.push('C');
+                    }
+                    "É" | "È" | "Ê" | "Ë" => {
+                        new_name.push('E');
+                    }
+                    "Ì" | "Í" | "Î" | "Ï" => {
+                        new_name.push('I');
+                    }
+                    "Ð" => {
+                        new_name.push('D');
+                    }
+                    "Ñ" => {
+                        new_name.push('N');
+                    }
+                    "Ò" | "Ó" | "Ô" | "Õ" | "Ö" => {
+                        new_name.push('O');
+                    }
+                    "×" => {
+                        new_name.push('x');
+                    }
+                    "Ù" | "Ú" | "Û" | "Ü" => {
+                        new_name.push('U');
+                    }
+                    "Ý" => {
+                        new_name.push('Y');
+                    }
+                    "ß" => {
+                        new_name.push('b');
+                    }
+                    "à" | "á" | "â" | "ä" | "ã" | "å" => {
+                        new_name.push('a');
+                    }
+                    "æ" => {
+                        new_name.push('a');
+                        new_name.push('e');
+                    }
+                    "ç" => {
+                        new_name.push('c');
+                    }
+                    "é" | "è" | "ê" | "ë" => {
+                        new_name.push('e');
+                    }
+                    "ì" | "í" | "î" | "ï" => {
+                        new_name.push('i');
+                    }
+                    "ñ" => {
+                        new_name.push('n');
+                    }
+                    "ð" | "ò" | "ó" | "ô" | "õ" | "ö" => {
+                        new_name.push('o');
+                    }
+                    "ù" | "ú" | "û" | "ü" => {
+                        new_name.push('u');
+                    }
+                    "ý" | "ÿ" => {
+                        new_name.push('y');
+                    }
+                    _ => {
+                        new_name.push('_');
+                    }
+                }
+                vec_grapheme.clear();
+            } else if first_byte >= 224 && first_byte < 240 && vec_grapheme.len() == 3 {
+                // three bytes grapheme
+                new_name.push('_');
+                vec_grapheme.clear();
+            } else if first_byte >= 240 && vec_grapheme.len() == 4 {
+                // four bytes grapheme
+                new_name.push('_');
+                vec_grapheme.clear();
             }
         }
-        return Ok(OsString::from(new_name));
     }
-    return Err("Cannot clean name".to_string());
+    return OsString::from(new_name);
 }
 
 fn clean_path(file_path: &PathBuf, options: &OptionnalFields) -> CustomSingleResult {
@@ -173,22 +171,14 @@ fn clean_path(file_path: &PathBuf, options: &OptionnalFields) -> CustomSingleRes
     }
     let file_name = file_name.unwrap();
     let cleaned_name = clean_name(file_name, &options);
-    if cleaned_name.is_err() {
-        return CustomSingleResult {
-            path: file_path.to_path_buf(),
-            modified: None,
-            error: Some(cleaned_name.err().unwrap()),
-        };
-    }
-    let cleaned_name = cleaned_name.unwrap();
-    if &cleaned_name == &file_name {
+    if &cleaned_name == file_name {
         return CustomSingleResult {
             path: file_path.to_path_buf(),
             modified: None,
             error: None,
         };
     }
-    let cleaned_path = file_path.with_file_name(cleaned_name.clone());
+    let cleaned_path = file_path.with_file_name(cleaned_name);
     if options.dry_run {
         return CustomSingleResult {
             path: file_path.to_path_buf(),
@@ -197,11 +187,11 @@ fn clean_path(file_path: &PathBuf, options: &OptionnalFields) -> CustomSingleRes
         };
     }
     let is_renamed = std::fs::rename(file_path, &cleaned_path);
-    if let Err(is_renamed) = is_renamed {
+    if let Err(rename_error) = is_renamed {
         return CustomSingleResult {
             path: file_path.to_path_buf(),
             modified: Some(cleaned_path),
-            error: Some(is_renamed.to_string()),
+            error: Some(rename_error.to_string()),
         };
     }
     return CustomSingleResult {
@@ -367,24 +357,17 @@ fn print_output(options: &OptionnalFields, final_res: CustomResult) {
     if options.verbose {
         let len = final_res.res.len();
         for one_res in final_res.res {
-            if one_res.error.is_some() {
+            if one_res.modified.is_some() && one_res.error.is_some() {
                 println!(
                     "{:?} -> {:?} : {}",
                     one_res.path,
-                    one_res.path,
+                    one_res.modified.unwrap(),
                     one_res.error.unwrap()
                 );
+            } else if one_res.error.is_some() {
+                println!("{:?} : {}", one_res.path, one_res.error.unwrap());
             } else if one_res.modified.is_some() {
-                if one_res.error.is_some() {
-                    println!(
-                        "{:?} -> {:?} : {}",
-                        one_res.path,
-                        one_res.modified.unwrap(),
-                        one_res.error.unwrap()
-                    );
-                } else {
-                    println!("{:?} -> {:?}", one_res.path, one_res.modified.unwrap());
-                }
+                println!("{:?} -> {:?}", one_res.path, one_res.modified.unwrap());
             }
         }
         println!("{} files checked", len);
