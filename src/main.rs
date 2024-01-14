@@ -30,118 +30,236 @@ struct CustomSingleResult {
     error: Option<String>,
 }
 
+fn push_underscore_if(stri: &mut String, to_push: char, condition: bool) {
+    if condition {
+        stri.push(to_push);
+    }
+}
+
+fn check_weirdos(vector: Vec<u8>, name_acc: &mut String, last_was_under: bool) -> bool {
+    let vec_to_string = String::from_utf8(vector).unwrap_or("".to_string());
+    for one_char in vec_to_string.chars() {
+        match one_char {
+            'A' | 'Ⓐ' | 'Ａ' | 'À' | 'Á' | 'Â' | 'Ầ' | 'Ấ' | 'Ẫ' | 'Ẩ' | 'Ã' | 'Ā' | 'Ă' | 'Ằ'
+            | 'Ắ' | 'Ẵ' | 'Ẳ' | 'Ȧ' | 'Ǡ' | 'Ä' | 'Ǟ' | 'Ả' | 'Å' | 'Ǻ' | 'Ǎ' | 'Ȁ' | 'Ȃ' | 'Ạ'
+            | 'Ậ' | 'Ặ' | 'Ḁ' | 'Ą' | 'Ⱥ' | 'Ɐ' => name_acc.push('A'),
+            'Ꜳ' => name_acc.push_str("AA"),
+            'Æ' | 'Ǽ' | 'Ǣ' => name_acc.push('A'),
+            'Ꜵ' => name_acc.push_str("AO"),
+            'Ꜷ' => name_acc.push_str("AU"),
+            'Ꜹ' | 'Ꜻ' => name_acc.push_str("AV"),
+            'Ꜽ' => name_acc.push_str("AY"),
+            'B' | 'Ⓑ' | 'Ｂ' | 'Ḃ' | 'Ḅ' | 'Ḇ' | 'Ƀ' | 'Ƃ' | 'Ɓ' => name_acc.push('B'),
+            'C' | 'Ⓒ' | 'Ｃ' | 'Ć' | 'Ĉ' | 'Ċ' | 'Č' | 'Ç' | 'Ḉ' | 'Ƈ' | 'Ȼ' | 'Ꜿ' => {
+                name_acc.push('C')
+            }
+            'D' | 'Ⓓ' | 'Ｄ' | 'Ḋ' | 'Ď' | 'Ḍ' | 'Ḑ' | 'Ḓ' | 'Ḏ' | 'Đ' | 'Ƌ' | 'Ɗ' | 'Ɖ' | 'Ꝺ' => {
+                name_acc.push('D')
+            }
+            'Ǳ' | 'Ǆ' => name_acc.push_str("DZ"),
+            'ǲ' | 'ǅ' => name_acc.push_str("Dz"),
+            'E' | 'Ⓔ' | 'Ｅ' | 'È' | 'É' | 'Ê' | 'Ề' | 'Ế' | 'Ễ' | 'Ể' | 'Ẽ' | 'Ē' | 'Ḕ' | 'Ḗ'
+            | 'Ĕ' | 'Ė' | 'Ë' | 'Ẻ' | 'Ě' | 'Ȅ' | 'Ȇ' | 'Ẹ' | 'Ệ' | 'Ȩ' | 'Ḝ' | 'Ę' | 'Ḙ' | 'Ḛ'
+            | 'Ɛ' | 'Ǝ' => name_acc.push('E'),
+            'F' | 'Ⓕ' | 'Ｆ' | 'Ḟ' | 'Ƒ' | 'Ꝼ' => name_acc.push('F'),
+            'G' | 'Ⓖ' | 'Ｇ' | 'Ǵ' | 'Ĝ' | 'Ḡ' | 'Ğ' | 'Ġ' | 'Ǧ' | 'Ģ' | 'Ǥ' | 'Ɠ' | 'Ꞡ' | 'Ᵹ'
+            | 'Ꝿ' => name_acc.push('G'),
+            'H' | 'Ⓗ' | 'Ｈ' | 'Ĥ' | 'Ḣ' | 'Ḧ' | 'Ȟ' | 'Ḥ' | 'Ḩ' | 'Ḫ' | 'Ħ' | 'Ⱨ' | 'Ⱶ' | 'Ɥ' => {
+                name_acc.push('H')
+            }
+            'I' | 'Ⓘ' | 'Ｉ' | 'Ì' | 'Í' | 'Î' | 'Ĩ' | 'Ī' | 'Ĭ' | 'İ' | 'Ï' | 'Ḯ' | 'Ỉ' | 'Ǐ'
+            | 'Ȉ' | 'Ȋ' | 'Ị' | 'Į' | 'Ḭ' | 'Ɨ' => name_acc.push('I'),
+            'J' | 'Ⓙ' | 'Ｊ' | 'Ĵ' | 'Ɉ' => name_acc.push('J'),
+            'K' | 'Ⓚ' | 'Ｋ' | 'Ḱ' | 'Ǩ' | 'Ḳ' | 'Ķ' | 'Ḵ' | 'Ƙ' | 'Ⱪ' | 'Ꝁ' | 'Ꝃ' | 'Ꝅ' | 'Ꞣ' => {
+                name_acc.push('K')
+            }
+            'L' | 'Ⓛ' | 'Ｌ' | 'Ŀ' | 'Ĺ' | 'Ľ' | 'Ḷ' | 'Ḹ' | 'Ļ' | 'Ḽ' | 'Ḻ' | 'Ł' | 'Ƚ' | 'Ɫ'
+            | 'Ⱡ' | 'Ꝉ' | 'Ꝇ' | 'Ꞁ' => name_acc.push('L'),
+            'Ǉ' => name_acc.push_str("LJ"),
+            'ǈ' => name_acc.push_str("Lj"),
+            'M' | 'Ⓜ' | 'Ｍ' | 'Ḿ' | 'Ṁ' | 'Ṃ' | 'Ɱ' | 'Ɯ' => name_acc.push('M'),
+            'N' | 'Ⓝ' | 'Ｎ' | 'Ǹ' | 'Ń' | 'Ñ' | 'Ṅ' | 'Ň' | 'Ṇ' | 'Ņ' | 'Ṋ' | 'Ṉ' | 'Ƞ' | 'Ɲ'
+            | 'Ꞑ' | 'Ꞥ' => name_acc.push('N'),
+            'Ǌ' => name_acc.push_str("NJ"),
+            'ǋ' => name_acc.push_str("Nj"),
+            'O' | 'Ⓞ' | 'Ｏ' | 'Ò' | 'Ó' | 'Ô' | 'Ồ' | 'Ố' | 'Ỗ' | 'Ổ' | 'Õ' | 'Ṍ' | 'Ȭ' | 'Ṏ'
+            | 'Ō' | 'Ṑ' | 'Ṓ' | 'Ŏ' | 'Ȯ' | 'Ȱ' | 'Ö' | 'Ȫ' | 'Ỏ' | 'Ő' | 'Ǒ' | 'Ȍ' | 'Ȏ' | 'Ơ'
+            | 'Ờ' | 'Ớ' | 'Ỡ' | 'Ở' | 'Ợ' | 'Ọ' | 'Ộ' | 'Ǫ' | 'Ǭ' | 'Ø' | 'Ǿ' | 'Ɔ' | 'Ɵ' | 'Ꝋ'
+            | 'Ꝍ' => name_acc.push('O'),
+            'Ƣ' => name_acc.push_str("OI"),
+            'Ꝏ' => name_acc.push_str("OO"),
+            'Ȣ' => name_acc.push_str("OU"),
+            '\u{008C}' | 'Œ' => name_acc.push_str("OE"),
+            '\u{009C}' | 'œ' => name_acc.push_str("oe"),
+            'P' | 'Ⓟ' | 'Ｐ' | 'Ṕ' | 'Ṗ' | 'Ƥ' | 'Ᵽ' | 'Ꝑ' | 'Ꝓ' | 'Ꝕ' => {
+                name_acc.push('P')
+            }
+            'Q' | 'Ⓠ' | 'Ｑ' | 'Ꝗ' | 'Ꝙ' | 'Ɋ' => name_acc.push('Q'),
+            'R' | 'Ⓡ' | 'Ｒ' | 'Ŕ' | 'Ṙ' | 'Ř' | 'Ȑ' | 'Ȓ' | 'Ṛ' | 'Ṝ' | 'Ŗ' | 'Ṟ' | 'Ɍ' | 'Ɽ'
+            | 'Ꝛ' | 'Ꞧ' | 'Ꞃ' => name_acc.push('R'),
+            'S' | 'Ⓢ' | 'Ｓ' | 'ẞ' | 'Ś' | 'Ṥ' | 'Ŝ' | 'Ṡ' | 'Š' | 'Ṧ' | 'Ṣ' | 'Ṩ' | 'Ș' | 'Ş'
+            | 'Ȿ' | 'Ꞩ' | 'Ꞅ' => name_acc.push('S'),
+            'T' | 'Ⓣ' | 'Ｔ' | 'Ṫ' | 'Ť' | 'Ṭ' | 'Ț' | 'Ţ' | 'Ṱ' | 'Ṯ' | 'Ŧ' | 'Ƭ' | 'Ʈ' | 'Ⱦ'
+            | 'Ꞇ' => name_acc.push('T'),
+            'Ꜩ' => name_acc.push_str("TZ"),
+            'U' | 'Ⓤ' | 'Ｕ' | 'Ù' | 'Ú' | 'Û' | 'Ũ' | 'Ṹ' | 'Ū' | 'Ṻ' | 'Ŭ' | 'Ü' | 'Ǜ' | 'Ǘ'
+            | 'Ǖ' | 'Ǚ' | 'Ủ' | 'Ů' | 'Ű' | 'Ǔ' | 'Ȕ' | 'Ȗ' | 'Ư' | 'Ừ' | 'Ứ' | 'Ữ' | 'Ử' | 'Ự'
+            | 'Ụ' | 'Ṳ' | 'Ų' | 'Ṷ' | 'Ṵ' | 'Ʉ' => name_acc.push('U'),
+            'V' | 'Ⓥ' | 'Ｖ' | 'Ṽ' | 'Ṿ' | 'Ʋ' | 'Ꝟ' | 'Ʌ' => name_acc.push('V'),
+            'Ꝡ' => name_acc.push_str("VY"),
+            'W' | 'Ⓦ' | 'Ｗ' | 'Ẁ' | 'Ẃ' | 'Ŵ' | 'Ẇ' | 'Ẅ' | 'Ẉ' | 'Ⱳ' => {
+                name_acc.push('W')
+            }
+            'X' | 'Ⓧ' | 'Ｘ' | 'Ẋ' | 'Ẍ' => name_acc.push('X'),
+            'Y' | 'Ⓨ' | 'Ｙ' | 'Ỳ' | 'Ý' | 'Ŷ' | 'Ỹ' | 'Ȳ' | 'Ẏ' | 'Ÿ' | 'Ỷ' | 'Ỵ' | 'Ƴ' | 'Ɏ'
+            | 'Ỿ' => name_acc.push('Y'),
+            'Z' | 'Ⓩ' | 'Ｚ' | 'Ź' | 'Ẑ' | 'Ż' | 'Ž' | 'Ẓ' | 'Ẕ' | 'Ƶ' | 'Ȥ' | 'Ɀ' | 'Ⱬ' | 'Ꝣ' => {
+                name_acc.push('Z')
+            }
+            'a' | 'ⓐ' | 'ａ' | 'ẚ' | 'à' | 'á' | 'â' | 'ầ' | 'ấ' | 'ẫ' | 'ẩ' | 'ã' | 'ā' | 'ă'
+            | 'ằ' | 'ắ' | 'ẵ' | 'ẳ' | 'ȧ' | 'ǡ' | 'ä' | 'ǟ' | 'ả' | 'å' | 'ǻ' | 'ǎ' | 'ȁ' | 'ȃ'
+            | 'ạ' | 'ậ' | 'ặ' | 'ḁ' | 'ą' | 'ⱥ' | 'ɐ' => name_acc.push('a'),
+            'ꜳ' => name_acc.push_str("aa"),
+            'æ' | 'ǽ' | 'ǣ' => name_acc.push('a'),
+            'ꜵ' => name_acc.push_str("ao"),
+            'ꜷ' => name_acc.push_str("au"),
+            'ꜹ' | 'ꜻ' => name_acc.push_str("av"),
+            'ꜽ' => name_acc.push_str("ay"),
+            'b' | 'ⓑ' | 'ｂ' | 'ḃ' | 'ḅ' | 'ḇ' | 'ƀ' | 'ƃ' | 'ɓ' | 'þ' => {
+                name_acc.push('b')
+            }
+            'c' | 'ⓒ' | 'ｃ' | 'ć' | 'ĉ' | 'ċ' | 'č' | 'ç' | 'ḉ' | 'ƈ' | 'ȼ' | 'ꜿ' | 'ↄ' => {
+                name_acc.push('c')
+            }
+            'd' | 'ⓓ' | 'ｄ' | 'ḋ' | 'ď' | 'ḍ' | 'ḑ' | 'ḓ' | 'ḏ' | 'đ' | 'ƌ' | 'ɖ' | 'ɗ' | 'ꝺ' => {
+                name_acc.push('d')
+            }
+            'ǳ' | 'ǆ' => name_acc.push_str("dz"),
+            'e' | 'ⓔ' | 'ｅ' | 'è' | 'é' | 'ê' | 'ề' | 'ế' | 'ễ' | 'ể' | 'ẽ' | 'ē' | 'ḕ' | 'ḗ'
+            | 'ĕ' | 'ė' | 'ë' | 'ẻ' | 'ě' | 'ȅ' | 'ȇ' | 'ẹ' | 'ệ' | 'ȩ' | 'ḝ' | 'ę' | 'ḙ' | 'ḛ'
+            | 'ɇ' | 'ɛ' | 'ǝ' => name_acc.push('e'),
+            'f' | 'ⓕ' | 'ｆ' | 'ḟ' | 'ƒ' | 'ꝼ' => name_acc.push('f'),
+            'g' | 'ⓖ' | 'ｇ' | 'ǵ' | 'ĝ' | 'ḡ' | 'ğ' | 'ġ' | 'ǧ' | 'ģ' | 'ǥ' | 'ɠ' | 'ꞡ' | 'ᵹ'
+            | 'ꝿ' => name_acc.push('g'),
+            'h' | 'ⓗ' | 'ｈ' | 'ĥ' | 'ḣ' | 'ḧ' | 'ȟ' | 'ḥ' | 'ḩ' | 'ḫ' | 'ẖ' | 'ħ' | 'ⱨ' | 'ⱶ'
+            | 'ɥ' => name_acc.push('h'),
+            'ƕ' => name_acc.push_str("hv"),
+            'i' | 'ⓘ' | 'ｉ' | 'ì' | 'í' | 'î' | 'ĩ' | 'ī' | 'ĭ' | 'ï' | 'ḯ' | 'ỉ' | 'ǐ' | 'ȉ'
+            | 'ȋ' | 'ị' | 'į' | 'ḭ' | 'ɨ' | 'ı' => name_acc.push('i'),
+            'j' | 'ⓙ' | 'ｊ' | 'ĵ' | 'ǰ' | 'ɉ' => name_acc.push('j'),
+            'k' | 'ⓚ' | 'ｋ' | 'ḱ' | 'ǩ' | 'ḳ' | 'ķ' | 'ḵ' | 'ƙ' | 'ⱪ' | 'ꝁ' | 'ꝃ' | 'ꝅ' | 'ꞣ' => {
+                name_acc.push('k')
+            }
+            'l' | 'ⓛ' | 'ｌ' | 'ŀ' | 'ĺ' | 'ľ' | 'ḷ' | 'ḹ' | 'ļ' | 'ḽ' | 'ḻ' | 'ſ' | 'ł' | 'ƚ'
+            | 'ɫ' | 'ⱡ' | 'ꝉ' | 'ꞁ' | 'ꝇ' => name_acc.push('l'),
+            'ǉ' => name_acc.push_str("lj"),
+            'm' | 'ⓜ' | 'ｍ' | 'ḿ' | 'ṁ' | 'ṃ' | 'ɱ' | 'ɯ' => name_acc.push('m'),
+            'n' | 'ⓝ' | 'ｎ' | 'ǹ' | 'ń' | 'ñ' | 'ṅ' | 'ň' | 'ṇ' | 'ņ' | 'ṋ' | 'ṉ' | 'ƞ' | 'ɲ'
+            | 'ŉ' | 'ꞑ' | 'ꞥ' => name_acc.push('n'),
+            'ǌ' => name_acc.push_str("nj"),
+            'o' | 'ⓞ' | 'ｏ' | 'ò' | 'ó' | 'ô' | 'ồ' | 'ố' | 'ỗ' | 'ổ' | 'õ' | 'ṍ' | 'ȭ' | 'ṏ'
+            | 'ō' | 'ṑ' | 'ṓ' | 'ŏ' | 'ȯ' | 'ȱ' | 'ö' | 'ȫ' | 'ỏ' | 'ő' | 'ǒ' | 'ȍ' | 'ȏ' | 'ơ'
+            | 'ờ' | 'ớ' | 'ỡ' | 'ở' | 'ợ' | 'ọ' | 'ộ' | 'ǫ' | 'ǭ' | 'ø' | 'ǿ' | 'ɔ' | 'ꝋ' | 'ꝍ'
+            | 'ɵ' => name_acc.push('o'),
+            'ƣ' => name_acc.push_str("oi"),
+            'ȣ' => name_acc.push_str("ou"),
+            'ꝏ' => name_acc.push_str("oo"),
+            'p' | 'ⓟ' | 'ｐ' | 'ṕ' | 'ṗ' | 'ƥ' | 'ᵽ' | 'ꝑ' | 'ꝓ' | 'ꝕ' => {
+                name_acc.push('p')
+            }
+            'q' | 'ⓠ' | 'ｑ' | 'ɋ' | 'ꝗ' | 'ꝙ' => name_acc.push('q'),
+            'r' | 'ⓡ' | 'ｒ' | 'ŕ' | 'ṙ' | 'ř' | 'ȑ' | 'ȓ' | 'ṛ' | 'ṝ' | 'ŗ' | 'ṟ' | 'ɍ' | 'ɽ'
+            | 'ꝛ' | 'ꞧ' | 'ꞃ' => name_acc.push('r'),
+            's' | 'ⓢ' | 'ｓ' | 'ß' | 'ś' | 'ṥ' | 'ŝ' | 'ṡ' | 'š' | 'ṧ' | 'ṣ' | 'ṩ' | 'ș' | 'ş'
+            | 'ȿ' | 'ꞩ' | 'ꞅ' | 'ẛ' => name_acc.push('s'),
+            't' | 'ⓣ' | 'ｔ' | 'ṫ' | 'ẗ' | 'ť' | 'ṭ' | 'ț' | 'ţ' | 'ṱ' | 'ṯ' | 'ŧ' | 'ƭ' | 'ʈ'
+            | 'ⱦ' | 'ꞇ' => name_acc.push('t'),
+            'ꜩ' => name_acc.push_str("tz"),
+            'u' | 'ⓤ' | 'ｕ' | 'ù' | 'ú' | 'û' | 'ũ' | 'ṹ' | 'ū' | 'ṻ' | 'ŭ' | 'ü' | 'ǜ' | 'ǘ'
+            | 'ǖ' | 'ǚ' | 'ủ' | 'ů' | 'ű' | 'ǔ' | 'ȕ' | 'ȗ' | 'ư' | 'ừ' | 'ứ' | 'ữ' | 'ử' | 'ự'
+            | 'ụ' | 'ṳ' | 'ų' | 'ṷ' | 'ṵ' | 'ʉ' => name_acc.push('u'),
+            'v' | 'ⓥ' | 'ｖ' | 'ṽ' | 'ṿ' | 'ʋ' | 'ꝟ' | 'ʌ' => name_acc.push('v'),
+            'ꝡ' => name_acc.push_str("vy"),
+            'w' | 'ⓦ' | 'ｗ' | 'ẁ' | 'ẃ' | 'ŵ' | 'ẇ' | 'ẅ' | 'ẘ' | 'ẉ' | 'ⱳ' => {
+                name_acc.push('w')
+            }
+            'x' | 'ⓧ' | 'ｘ' | 'ẋ' | 'ẍ' => name_acc.push('x'),
+            'y' | 'ⓨ' | 'ｙ' | 'ỳ' | 'ý' | 'ŷ' | 'ỹ' | 'ȳ' | 'ẏ' | 'ÿ' | 'ỷ' | 'ẙ' | 'ỵ' | 'ƴ'
+            | 'ɏ' | 'ỿ' => name_acc.push('y'),
+            'z' | 'ⓩ' | 'ｚ' | 'ź' | 'ẑ' | 'ż' | 'ž' | 'ẓ' | 'ẕ' | 'ƶ' | 'ȥ' | 'ɀ' | 'ⱬ' | 'ꝣ' => {
+                name_acc.push('z')
+            }
+            '–' => {
+                name_acc.push('-');
+                return false;
+            }
+            '\u{0300}'..='\u{036F}' | '\u{1AB0}'..='\u{1AFF}' | '\u{1DC0}'..='\u{1DFF}' => {}
+            _ => {
+                if !last_was_under {
+                    name_acc.push('_');
+                }
+                return true;
+            }
+        };
+        return false;
+    }
+    return false;
+}
+
 fn clean_name(path: &OsStr, _options: &OptionnalFields) -> OsString {
     // for each byte of the path if it's not ascii, replace it with _
     let mut new_name = String::new();
     let mut vec_grapheme = Vec::with_capacity(4);
+    let mut last_was_underscore = false;
     for byte in path.as_bytes().to_owned() {
         if vec_grapheme.len() == 0 && byte < 128 {
             match byte {
                 0..=44 => {
-                    new_name.push('_');
+                    push_underscore_if(&mut new_name, '_', !last_was_underscore);
+                    last_was_underscore = true;
                 }
                 46 => {
                     new_name.push('.');
+                    last_was_underscore = false;
                 }
                 47 => {
-                    new_name.push('_');
+                    push_underscore_if(&mut new_name, '_', !last_was_underscore);
+                    last_was_underscore = true;
                 }
                 58..=64 => {
-                    new_name.push('_');
+                    push_underscore_if(&mut new_name, '_', !last_was_underscore);
+                    last_was_underscore = true;
                 }
                 91..=96 => {
-                    new_name.push('_');
+                    push_underscore_if(&mut new_name, '_', !last_was_underscore);
+                    last_was_underscore = true;
                 }
                 123..=127 => {
-                    new_name.push('_');
+                    push_underscore_if(&mut new_name, '_', !last_was_underscore);
+                    last_was_underscore = true;
                 }
-                _ => new_name.push(byte as char),
+                _ => {
+                    new_name.push(byte as char);
+                    last_was_underscore = false;
+                }
             }
         } else {
             vec_grapheme.push(byte);
             let first_byte = vec_grapheme[0];
             if first_byte >= 240 && vec_grapheme.len() == 4 {
                 // four bytes grapheme
-                new_name.push('_');
+                last_was_underscore =
+                    check_weirdos(vec_grapheme.clone(), &mut new_name, last_was_underscore);
                 vec_grapheme.clear();
-            } else if first_byte >= 224 && vec_grapheme.len() == 3 {
+            } else if first_byte >= 224 && first_byte < 240 && vec_grapheme.len() == 3 {
                 // three bytes grapheme
-                new_name.push('_');
+                last_was_underscore =
+                    check_weirdos(vec_grapheme.clone(), &mut new_name, last_was_underscore);
                 vec_grapheme.clear();
-            } else if first_byte >= 192 && vec_grapheme.len() == 2 {
+            } else if first_byte >= 128 && first_byte < 224 && vec_grapheme.len() == 2 {
                 // two bytes grapheme
-                let vec_to_string =
-                    String::from_utf8(vec_grapheme.clone()).unwrap_or("".to_string());
-                match vec_to_string.as_str() {
-                    "À" | "Á" | "Â" | "Ã" | "Ä" | "Å" => {
-                        new_name.push('A');
-                    }
-                    "Æ" => {
-                        new_name.push('A');
-                        new_name.push('E');
-                    }
-                    "Ç" => {
-                        new_name.push('C');
-                    }
-                    "É" | "È" | "Ê" | "Ë" => {
-                        new_name.push('E');
-                    }
-                    "Ì" | "Í" | "Î" | "Ï" => {
-                        new_name.push('I');
-                    }
-                    "Ð" => {
-                        new_name.push('D');
-                    }
-                    "Ñ" => {
-                        new_name.push('N');
-                    }
-                    "Ò" | "Ó" | "Ô" | "Õ" | "Ö" => {
-                        new_name.push('O');
-                    }
-                    "×" => {
-                        new_name.push('x');
-                    }
-                    "Ù" | "Ú" | "Û" | "Ü" => {
-                        new_name.push('U');
-                    }
-                    "Ý" => {
-                        new_name.push('Y');
-                    }
-                    "ß" => {
-                        new_name.push('b');
-                    }
-                    "à" | "á" | "â" | "ä" | "ã" | "å" => {
-                        new_name.push('a');
-                    }
-                    "æ" => {
-                        new_name.push('a');
-                        new_name.push('e');
-                    }
-                    "ç" => {
-                        new_name.push('c');
-                    }
-                    "é" | "è" | "ê" | "ë" => {
-                        new_name.push('e');
-                    }
-                    "ì" | "í" | "î" | "ï" => {
-                        new_name.push('i');
-                    }
-                    "ñ" => {
-                        new_name.push('n');
-                    }
-                    "ð" | "ò" | "ó" | "ô" | "õ" | "ö" => {
-                        new_name.push('o');
-                    }
-                    "ù" | "ú" | "û" | "ü" => {
-                        new_name.push('u');
-                    }
-                    "ý" | "ÿ" => {
-                        new_name.push('y');
-                    }
-                    _ => {
-                        new_name.push('_');
-                    }
-                }
+                last_was_underscore =
+                    check_weirdos(vec_grapheme.clone(), &mut new_name, last_was_underscore);
                 vec_grapheme.clear();
             }
         }
