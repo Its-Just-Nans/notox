@@ -34,7 +34,9 @@ cargo test <test_name>
 
 ## 2024-01-20
 
+- Create a `lib.rs` file
 - Add tests
+- Bump to version `1.0.4`
 
 ## 2024-01-14
 
