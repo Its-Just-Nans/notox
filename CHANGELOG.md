@@ -25,6 +25,10 @@ open target/llvm-cov/html/index.html
 ```sh
 cargo test
 
+# show the output of the test
+cargo test -- --show-output
+
+# run a specific test
 cargo test <test_name>
 ```
 

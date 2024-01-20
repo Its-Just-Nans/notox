@@ -417,10 +417,10 @@ fn show_version() {
 }
 
 /// Parse the arguments and return the options and the paths to check
-pub fn parse_args(args: Vec<String>) -> Result<(OptionnalFields, Vec<PathBuf>), u8> {
+pub fn parse_args(args: Vec<String>) -> Result<(OptionnalFields, Vec<PathBuf>), i32> {
     if args.len() == 1 {
         println!("You need to provide at least one path");
-        std::process::exit(1);
+        return Err(1);
     }
 
     let mut dry_run = true;
@@ -467,7 +467,7 @@ pub fn parse_args(args: Vec<String>) -> Result<(OptionnalFields, Vec<PathBuf>), 
         } else if json {
             println!(r#"{{"error": "You need to provide at least one path"}}"#);
         }
-        std::process::exit(1);
+        return Err(1);
     }
     return Ok((
         OptionnalFields {
@@ -484,7 +484,10 @@ pub fn parse_args(args: Vec<String>) -> Result<(OptionnalFields, Vec<PathBuf>), 
 }
 
 /// Print the output of the program conforming to the options
-pub fn print_output(options: &OptionnalFields, final_res: Vec<CustomSingleResult>) {
+pub fn print_output(
+    options: &OptionnalFields,
+    final_res: Vec<CustomSingleResult>,
+) -> Result<(), i32> {
     if options.verbose {
         let len = final_res.len();
         for one_res in final_res {
@@ -525,10 +528,11 @@ pub fn print_output(options: &OptionnalFields, final_res: Vec<CustomSingleResult
                 println!("{}", stringed);
             } else {
                 println!(r#"{{"error": "Cannot serialize result"}}"#);
-                std::process::exit(1);
+                return Err(2);
             }
         }
     }
+    Ok(())
 }
 
 /// main function of the program

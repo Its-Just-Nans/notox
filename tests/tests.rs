@@ -164,6 +164,30 @@ mod tests {
                     },
                 },
             ),
+            (
+                vec!["notox".to_owned(), "-q".to_owned()],
+                notox::OptionnalFields {
+                    dry_run: false,
+                    verbose: false,
+                    json: notox::JsonFields {
+                        json: false,
+                        json_pretty: false,
+                        json_error: false,
+                    },
+                },
+            ),
+            (
+                vec!["notox".to_owned(), "--quiet".to_owned()],
+                notox::OptionnalFields {
+                    dry_run: false,
+                    verbose: false,
+                    json: notox::JsonFields {
+                        json: false,
+                        json_pretty: false,
+                        json_error: false,
+                    },
+                },
+            ),
         ];
         print!("ARGS: {:?}\n", args);
         for one_test in args.iter() {
