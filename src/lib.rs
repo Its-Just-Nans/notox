@@ -61,7 +61,8 @@ fn push_underscore_if(stri: &mut String, to_push: char, condition: bool) {
     }
 }
 
-fn check_weirdos(vector: Vec<u8>, name_acc: &mut String, last_was_under: bool) -> bool {
+/// Check if a vector of bytes is similar to a char
+pub fn check_similar(vector: Vec<u8>, name_acc: &mut String, last_was_under: bool) -> bool {
     let vec_to_string = String::from_utf8(vector).unwrap_or("".to_string());
     for one_char in vec_to_string.chars() {
         match one_char {
@@ -274,17 +275,17 @@ fn clean_name(path: &OsStr, _options: &OptionnalFields) -> OsString {
             if first_byte >= 240 && vec_grapheme.len() == 4 {
                 // four bytes grapheme
                 last_was_underscore =
-                    check_weirdos(vec_grapheme.clone(), &mut new_name, last_was_underscore);
+                    check_similar(vec_grapheme.clone(), &mut new_name, last_was_underscore);
                 vec_grapheme.clear();
             } else if first_byte >= 224 && first_byte < 240 && vec_grapheme.len() == 3 {
                 // three bytes grapheme
                 last_was_underscore =
-                    check_weirdos(vec_grapheme.clone(), &mut new_name, last_was_underscore);
+                    check_similar(vec_grapheme.clone(), &mut new_name, last_was_underscore);
                 vec_grapheme.clear();
             } else if first_byte >= 128 && first_byte < 224 && vec_grapheme.len() == 2 {
                 // two bytes grapheme
                 last_was_underscore =
-                    check_weirdos(vec_grapheme.clone(), &mut new_name, last_was_underscore);
+                    check_similar(vec_grapheme.clone(), &mut new_name, last_was_underscore);
                 vec_grapheme.clear();
             }
         }
@@ -542,6 +543,9 @@ pub fn notox(options: &OptionnalFields, paths_to_check: Vec<PathBuf>) -> Vec<Cus
     }
     let mut final_res = Vec::new();
     for one_path in paths_to_check {
+        if options.verbose {
+            println!("Checking: {:?}", one_path);
+        }
         let one_res = clean(one_path, &options);
         final_res.extend(one_res);
     }
