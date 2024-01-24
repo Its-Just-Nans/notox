@@ -18,3 +18,7 @@ serde_json = { version = "1.0", optional = true }
 [features]
 default = ["serde"]
 serde = ["dep:serde", "dep:serde_json"]
+
+[dev-dependencies]
+assert_cmd = "2.0.13"
+predicates = "3.1.0"

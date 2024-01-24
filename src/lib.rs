@@ -505,7 +505,11 @@ pub fn print_output(
                 println!("{:?} -> {:?}", one_res.path, one_res.modified.unwrap());
             }
         }
-        println!("{} files checked", len);
+        if len == 1 {
+            println!("{} file checked", len);
+        } else {
+            println!("{} files checked", len);
+        }
     } else if options.json.json {
         #[cfg(feature = "serde")]
         {
