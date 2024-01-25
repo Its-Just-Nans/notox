@@ -24,6 +24,11 @@ notox --do my_path
 | `-p`, `--json-pretty` | Output as JSON (prettified)  |
 | `-e`, `--json-error`  | Output as JSON (only errors) |
 
+## Infos
+
+- [Changelog](CHANGELOG.md)
+- [Coverage](https://its-just-nans.github.io/notox/coverage/)
+
 ## License
 
 - [MIT](LICENSE)
