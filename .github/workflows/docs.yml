@@ -3,6 +3,7 @@ name: Rust
 on:
     push:
         branches: ["main"]
+    workflow_dispatch:
 
 env:
     CARGO_TERM_COLOR: always
@@ -24,6 +25,8 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v3
+            - name: Setup Pages
+              uses: actions/configure-pages@v2
             - name: Build
               run: cargo build --verbose
             - name: Build website
@@ -31,7 +34,7 @@ jobs:
             - name: Upload coverage artifact
               uses: actions/upload-artifact@v4.3.0
               with:
-                  path: "dist/"
+                  path: "dist"
             - name: Deploy to GitHub Pages
               id: deployment
               uses: actions/deploy-pages@v1
