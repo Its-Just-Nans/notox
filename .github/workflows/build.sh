@@ -11,4 +11,6 @@ cp -r target/llvm-cov/html dist/coverage
 sed 's|CHANGELOG.md|CHANGELOG.html|g' README.md >README.md.tmp
 comrak --gfm -o dist/index.html --width 10 README.md.tmp
 comrak --gfm -o dist/CHANGELOG.html --width 10 CHANGELOG.md
+
+# cleanup
 rm README.md.tmp
