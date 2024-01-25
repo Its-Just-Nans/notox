@@ -32,6 +32,12 @@ cargo test -- --show-output
 cargo test <test_name>
 ```
 
+## 2024-01-25
+
+- Add tests
+- Use `as_encoded_bytes` instead of `as_bytes`
+- Bump to version `1.0.5`
+
 ## 2024-01-20
 
 - Create a `lib.rs` file
