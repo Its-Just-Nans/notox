@@ -8,7 +8,7 @@ description = "no toxic names anymore"
 license = "MIT"
 homepage = "https://github.com/Its-Just-Nans/notox"
 repository = "https://github.com/Its-Just-Nans/notox"
-keywords = ["clean", "filenames", "file", "filesystem", "tool", "notox"]
+keywords = ["clean", "filename", "file", "filesystem", "tool"]
 
 
 [[bin]]
