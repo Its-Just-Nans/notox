@@ -1,13 +1,19 @@
 [package]
 name = "notox"
-version = "1.0.4"
-authors = ["n4n5"]
+version = "1.0.5"
+authors = ["n4n5 <its.just.n4n5@gmail.com>"]
+categories = ["command-line-utilities"]
 edition = "2021"
 description = "no toxic names anymore"
 license = "MIT"
 homepage = "https://github.com/Its-Just-Nans/notox"
 repository = "https://github.com/Its-Just-Nans/notox"
+keywords = ["clean", "filenames", "file", "filesystem", "tool", "notox"]
 
+
+[[bin]]
+name = "notox"
+path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
