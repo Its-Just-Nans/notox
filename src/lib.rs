@@ -5,7 +5,6 @@
 use std::{
     ffi::{OsStr, OsString},
     fs::DirEntry,
-    os::unix::ffi::OsStrExt,
     path::PathBuf,
 };
 
@@ -237,7 +236,7 @@ fn clean_name(path: &OsStr, _options: &OptionnalFields) -> OsString {
     let mut new_name = String::new();
     let mut vec_grapheme = Vec::with_capacity(4);
     let mut last_was_underscore = false;
-    for byte in path.as_bytes().to_owned() {
+    for byte in path.as_encoded_bytes().to_owned() {
         if vec_grapheme.len() == 0 && byte < 128 {
             match byte {
                 0..=44 => {
