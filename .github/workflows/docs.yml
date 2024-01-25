@@ -1,4 +1,4 @@
-name: Rust
+name: Build coverage and upload
 
 on:
     push:
@@ -32,7 +32,7 @@ jobs:
             - name: Build website
               run: .github/workflows/build.sh
             - name: Upload coverage artifact
-              uses: actions/upload-artifact@v1
+              uses: actions/upload-pages-artifact@v1
               with:
                   path: "dist"
             - name: Deploy to GitHub Pages
