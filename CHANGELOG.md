@@ -35,6 +35,8 @@ cargo test <test_name>
 ## 2024-02-13
 
 - better separation of options - `VerbosityFields` and `OptionsFields`
+- Do `.` by default instead of doing nothing
+- Bump to version `1.0.6`
 
 ## 2024-01-25
 
