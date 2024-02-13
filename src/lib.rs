@@ -9,40 +9,44 @@ use std::{
 };
 
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
-/// Contains informations about json options
-pub struct JsonFields {
+/// Contains informations about verbosity options
+pub struct VerbosityFields {
     /// if true, the program will print json
     pub json: bool,
     /// if true, the program will print json with pretty print
     pub json_pretty: bool,
     /// if true, the program will only print errors as json
     pub json_error: bool,
+    /// verbosity of the program
+    pub verbose: bool,
 }
 
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+/// contains informations about cleaning options
+pub struct OptionsFields {
+    /// if true, the program will not rename files
+    pub dry_run: bool,
+}
+
+#[derive(Debug)]
 /// Options for the program
 pub struct OptionnalFields {
     /// if true, the program will not rename files
-    pub dry_run: bool,
-    /// verbosity of the program
-    pub verbose: bool,
+    pub options: OptionsFields,
     /// contains informations about JsonFields
-    pub json: JsonFields,
+    pub verbosity: VerbosityFields,
 }
 
 impl PartialEq<OptionnalFields> for OptionnalFields {
     fn eq(&self, other: &OptionnalFields) -> bool {
-        self.dry_run == other.dry_run
-            && self.verbose == other.verbose
-            && self.json.json == other.json.json
-            && self.json.json_pretty == other.json.json_pretty
-            && self.json.json_error == other.json.json_error
+        self.options.dry_run == other.options.dry_run
+            && self.verbosity.verbose == other.verbosity.verbose
+            && self.verbosity.json == other.verbosity.json
+            && self.verbosity.json_pretty == other.verbosity.json_pretty
+            && self.verbosity.json_error == other.verbosity.json_error
     }
 }
 
-#[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 /// Contains informations about a result of a single file
 pub struct CustomSingleResult {
@@ -231,7 +235,7 @@ pub fn check_similar(vector: Vec<u8>, name_acc: &mut String, last_was_under: boo
     return false;
 }
 
-fn clean_name(path: &OsStr, _options: &OptionnalFields) -> OsString {
+fn clean_name(path: &OsStr, _options: &OptionsFields) -> OsString {
     // for each byte of the path if it's not ascii, replace it with _
     let mut new_name = String::new();
     let mut vec_grapheme = Vec::with_capacity(4);
@@ -292,7 +296,7 @@ fn clean_name(path: &OsStr, _options: &OptionnalFields) -> OsString {
     return OsString::from(new_name);
 }
 
-fn clean_path(file_path: &PathBuf, options: &OptionnalFields) -> CustomSingleResult {
+fn clean_path(file_path: &PathBuf, options: &OptionsFields) -> CustomSingleResult {
     let file_name = file_path.file_name();
     if file_name.is_none() {
         return CustomSingleResult {
@@ -349,7 +353,7 @@ fn is_directory_entry(entry: &DirEntry) -> bool {
     }
 }
 
-fn clean_directory(dir_path: &PathBuf, options: &OptionnalFields) -> Vec<CustomSingleResult> {
+fn clean_directory(dir_path: &PathBuf, options: &OptionsFields) -> Vec<CustomSingleResult> {
     let mut dir_path = dir_path.clone();
     let mut res = Vec::new();
     let res_dir = clean_path(&dir_path, &options);
@@ -388,7 +392,7 @@ fn clean_directory(dir_path: &PathBuf, options: &OptionnalFields) -> Vec<CustomS
     return res;
 }
 
-fn clean(path: PathBuf, options: &OptionnalFields) -> Vec<CustomSingleResult> {
+fn clean(path: PathBuf, options: &OptionsFields) -> Vec<CustomSingleResult> {
     if is_directory(&path) {
         return clean_directory(&path, &options);
     } else {
@@ -418,11 +422,6 @@ fn show_version() {
 
 /// Parse the arguments and return the options and the paths to check
 pub fn parse_args(args: Vec<String>) -> Result<(OptionnalFields, Vec<PathBuf>), i32> {
-    if args.len() == 1 {
-        println!("You need to provide at least one path");
-        return Err(1);
-    }
-
     let mut dry_run = true;
     let mut verbose = true;
     let mut json = false;
@@ -462,18 +461,14 @@ pub fn parse_args(args: Vec<String>) -> Result<(OptionnalFields, Vec<PathBuf>), 
         }
     }
     if path_to_check.len() == 0 {
-        if verbose {
-            println!("You need to provide at least one valid path !");
-        } else if json {
-            println!(r#"{{"error": "You need to provide at least one path"}}"#);
-        }
-        return Err(1);
+        let paths = get_path_of_dir(".");
+        path_to_check.extend(paths);
     }
     return Ok((
         OptionnalFields {
-            dry_run,
-            verbose,
-            json: JsonFields {
+            options: OptionsFields { dry_run },
+            verbosity: VerbosityFields {
+                verbose,
                 json,
                 json_pretty,
                 json_error,
@@ -485,7 +480,7 @@ pub fn parse_args(args: Vec<String>) -> Result<(OptionnalFields, Vec<PathBuf>), 
 
 /// Print the output of the program conforming to the options
 pub fn print_output(
-    options: &OptionnalFields,
+    options: &VerbosityFields,
     final_res: Vec<CustomSingleResult>,
 ) -> Result<(), i32> {
     if options.verbose {
@@ -509,10 +504,10 @@ pub fn print_output(
         } else {
             println!("{} files checked", len);
         }
-    } else if options.json.json {
+    } else if options.json {
         #[cfg(feature = "serde")]
         {
-            let vec_to_json = if options.json.json_error {
+            let vec_to_json = if options.json_error {
                 let mut vec_to_json: Vec<CustomSingleResult> = Vec::new();
                 for one_res in final_res {
                     if one_res.error.is_some() {
@@ -523,7 +518,7 @@ pub fn print_output(
             } else {
                 final_res
             };
-            let json_string = if options.json.json_pretty {
+            let json_string = if options.json_pretty {
                 serde_json::to_string_pretty(&vec_to_json)
             } else {
                 serde_json::to_string(&vec_to_json)
@@ -539,18 +534,30 @@ pub fn print_output(
     Ok(())
 }
 
-/// main function of the program
-pub fn notox(options: &OptionnalFields, paths_to_check: Vec<PathBuf>) -> Vec<CustomSingleResult> {
-    if options.verbose {
-        println!("Running with options: {:?}", &options);
+/// Do the program, return the Vector of result
+pub fn notox(
+    full_options: &OptionnalFields,
+    paths_to_check: Vec<PathBuf>,
+) -> Vec<CustomSingleResult> {
+    if full_options.verbosity.verbose {
+        println!("Running with options: {:?}", &full_options);
     }
     let mut final_res = Vec::new();
     for one_path in paths_to_check {
-        if options.verbose {
+        if full_options.verbosity.verbose {
             println!("Checking: {:?}", one_path);
         }
-        let one_res = clean(one_path, &options);
+        let one_res = clean(one_path, &full_options.options);
         final_res.extend(one_res);
     }
     return final_res;
+}
+
+/// main function of the program: clean and print the output
+pub fn notox_full(full_options: &OptionnalFields, paths_to_check: Vec<PathBuf>) -> i32 {
+    let final_res = notox(&full_options, paths_to_check);
+    if let Err(code) = print_output(&full_options.verbosity, final_res) {
+        return code;
+    }
+    0
 }

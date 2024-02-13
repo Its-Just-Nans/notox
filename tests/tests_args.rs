@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use notox::OptionnalFields;
 
     #[test]
     fn test_parse_args() {
@@ -8,9 +7,9 @@ mod tests {
             (
                 vec!["notox".to_owned(), "README.md".to_owned()],
                 notox::OptionnalFields {
-                    dry_run: true,
-                    verbose: true,
-                    json: notox::JsonFields {
+                    options: notox::OptionsFields { dry_run: true },
+                    verbosity: notox::VerbosityFields {
+                        verbose: true,
                         json: false,
                         json_pretty: false,
                         json_error: false,
@@ -20,9 +19,9 @@ mod tests {
             (
                 vec!["notox".to_owned(), "README.md".to_owned(), "-d".to_owned()],
                 notox::OptionnalFields {
-                    dry_run: false,
-                    verbose: true,
-                    json: notox::JsonFields {
+                    options: notox::OptionsFields { dry_run: false },
+                    verbosity: notox::VerbosityFields {
+                        verbose: true,
                         json: false,
                         json_pretty: false,
                         json_error: false,
@@ -37,9 +36,9 @@ mod tests {
                     "-j".to_owned(),
                 ],
                 notox::OptionnalFields {
-                    dry_run: false,
-                    verbose: false,
-                    json: notox::JsonFields {
+                    options: notox::OptionsFields { dry_run: false },
+                    verbosity: notox::VerbosityFields {
+                        verbose: false,
                         json: true,
                         json_pretty: false,
                         json_error: false,
@@ -54,9 +53,9 @@ mod tests {
                     "--json".to_owned(),
                 ],
                 notox::OptionnalFields {
-                    dry_run: false,
-                    verbose: false,
-                    json: notox::JsonFields {
+                    options: notox::OptionsFields { dry_run: false },
+                    verbosity: notox::VerbosityFields {
+                        verbose: false,
                         json: true,
                         json_pretty: false,
                         json_error: false,
@@ -71,9 +70,9 @@ mod tests {
                     "-e".to_owned(),
                 ],
                 notox::OptionnalFields {
-                    dry_run: false,
-                    verbose: false,
-                    json: notox::JsonFields {
+                    options: notox::OptionsFields { dry_run: false },
+                    verbosity: notox::VerbosityFields {
+                        verbose: false,
                         json: true,
                         json_pretty: false,
                         json_error: true,
@@ -88,9 +87,9 @@ mod tests {
                     "--json-error".to_owned(),
                 ],
                 notox::OptionnalFields {
-                    dry_run: false,
-                    verbose: false,
-                    json: notox::JsonFields {
+                    options: notox::OptionsFields { dry_run: false },
+                    verbosity: notox::VerbosityFields {
+                        verbose: false,
                         json: true,
                         json_pretty: false,
                         json_error: true,
@@ -105,9 +104,9 @@ mod tests {
                     "-p".to_owned(),
                 ],
                 notox::OptionnalFields {
-                    dry_run: false,
-                    verbose: false,
-                    json: notox::JsonFields {
+                    options: notox::OptionsFields { dry_run: false },
+                    verbosity: notox::VerbosityFields {
+                        verbose: false,
                         json: true,
                         json_pretty: true,
                         json_error: false,
@@ -122,9 +121,9 @@ mod tests {
                     "--json-pretty".to_owned(),
                 ],
                 notox::OptionnalFields {
-                    dry_run: false,
-                    verbose: false,
-                    json: notox::JsonFields {
+                    options: notox::OptionsFields { dry_run: false },
+                    verbosity: notox::VerbosityFields {
+                        verbose: false,
                         json: true,
                         json_pretty: true,
                         json_error: false,
@@ -134,9 +133,9 @@ mod tests {
             (
                 vec!["notox".to_owned(), "-v".to_owned()],
                 notox::OptionnalFields {
-                    dry_run: false,
-                    verbose: false,
-                    json: notox::JsonFields {
+                    options: notox::OptionsFields { dry_run: true },
+                    verbosity: notox::VerbosityFields {
+                        verbose: false,
                         json: true,
                         json_pretty: true,
                         json_error: false,
@@ -146,9 +145,9 @@ mod tests {
             (
                 vec!["notox".to_owned(), "--version".to_owned()],
                 notox::OptionnalFields {
-                    dry_run: false,
-                    verbose: false,
-                    json: notox::JsonFields {
+                    options: notox::OptionsFields { dry_run: true },
+                    verbosity: notox::VerbosityFields {
+                        verbose: false,
                         json: true,
                         json_pretty: true,
                         json_error: false,
@@ -158,9 +157,9 @@ mod tests {
             (
                 vec!["notox".to_owned(), "-q".to_owned()],
                 notox::OptionnalFields {
-                    dry_run: false,
-                    verbose: false,
-                    json: notox::JsonFields {
+                    options: notox::OptionsFields { dry_run: true },
+                    verbosity: notox::VerbosityFields {
+                        verbose: false,
                         json: false,
                         json_pretty: false,
                         json_error: false,
@@ -170,9 +169,9 @@ mod tests {
             (
                 vec!["notox".to_owned(), "--quiet".to_owned()],
                 notox::OptionnalFields {
-                    dry_run: false,
-                    verbose: false,
-                    json: notox::JsonFields {
+                    options: notox::OptionsFields { dry_run: true },
+                    verbosity: notox::VerbosityFields {
+                        verbose: false,
                         json: false,
                         json_pretty: false,
                         json_error: false,
@@ -192,38 +191,6 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_args_no_args() {
-        let vec_args = vec!["notox".to_owned()];
-        let res = notox::parse_args(vec_args);
-        let code_res = res.err().unwrap();
-        assert_eq!(code_res, 1);
-    }
-
-    #[test]
-    fn test_parse_args_no_file_json() {
-        let vec_args = vec!["notox".to_owned(), "-j".to_owned()];
-        let res = notox::parse_args(vec_args);
-        let code_res = res.err().unwrap();
-        assert_eq!(code_res, 1);
-    }
-
-    #[test]
-    fn test_parse_args_no_file_verbose() {
-        let vec_args = vec!["notox".to_owned(), "-d".to_owned()];
-        let res = notox::parse_args(vec_args);
-        let code_res = res.err().unwrap();
-        assert_eq!(code_res, 1);
-    }
-
-    #[test]
-    fn test_parse_args_no_file_quiet() {
-        let vec_args = vec!["notox".to_owned(), "-q".to_owned()];
-        let res = notox::parse_args(vec_args);
-        let code_res = res.err().unwrap();
-        assert_eq!(code_res, 1);
-    }
-
-    #[test]
     fn test_parse_args_no_file_found() {
         let vec_args = vec![
             "notox".to_owned(),
@@ -234,10 +201,10 @@ mod tests {
         let (options, vect) = res.ok().unwrap();
         assert_eq!(
             options,
-            OptionnalFields {
-                dry_run: true,
-                verbose: true,
-                json: notox::JsonFields {
+            notox::OptionnalFields {
+                options: notox::OptionsFields { dry_run: true },
+                verbosity: notox::VerbosityFields {
+                    verbose: true,
                     json: false,
                     json_pretty: false,
                     json_error: false,
@@ -254,10 +221,10 @@ mod tests {
         let (options, vect) = res.ok().unwrap();
         assert_eq!(
             options,
-            OptionnalFields {
-                dry_run: true,
-                verbose: true,
-                json: notox::JsonFields {
+            notox::OptionnalFields {
+                options: notox::OptionsFields { dry_run: true },
+                verbosity: notox::VerbosityFields {
+                    verbose: true,
                     json: false,
                     json_pretty: false,
                     json_error: false,

@@ -6,54 +6,54 @@ mod tests {
     fn test_print_output() {
         let args = vec![
             notox::OptionnalFields {
-                dry_run: false,
-                verbose: true,
-                json: notox::JsonFields {
+                options: notox::OptionsFields { dry_run: false },
+                verbosity: notox::VerbosityFields {
+                    verbose: true,
                     json: false,
                     json_pretty: false,
                     json_error: false,
                 },
             },
             notox::OptionnalFields {
-                dry_run: true,
-                verbose: true,
-                json: notox::JsonFields {
+                options: notox::OptionsFields { dry_run: true },
+                verbosity: notox::VerbosityFields {
+                    verbose: true,
                     json: false,
                     json_pretty: false,
                     json_error: false,
                 },
             },
             notox::OptionnalFields {
-                dry_run: true,
-                verbose: false,
-                json: notox::JsonFields {
+                options: notox::OptionsFields { dry_run: true },
+                verbosity: notox::VerbosityFields {
+                    verbose: false,
                     json: true,
                     json_pretty: false,
                     json_error: false,
                 },
             },
             notox::OptionnalFields {
-                dry_run: true,
-                verbose: false,
-                json: notox::JsonFields {
+                options: notox::OptionsFields { dry_run: true },
+                verbosity: notox::VerbosityFields {
+                    verbose: false,
                     json: true,
                     json_pretty: false,
                     json_error: true,
                 },
             },
             notox::OptionnalFields {
-                dry_run: true,
-                verbose: false,
-                json: notox::JsonFields {
+                options: notox::OptionsFields { dry_run: true },
+                verbosity: notox::VerbosityFields {
+                    verbose: false,
                     json: true,
                     json_pretty: true,
                     json_error: false,
                 },
             },
             notox::OptionnalFields {
-                dry_run: true,
-                verbose: false,
-                json: notox::JsonFields {
+                options: notox::OptionsFields { dry_run: true },
+                verbosity: notox::VerbosityFields {
+                    verbose: false,
                     json: false,
                     json_pretty: false,
                     json_error: false,
@@ -63,7 +63,7 @@ mod tests {
         for options in args.iter() {
             let paths_to_check = vec![PathBuf::from("README.md")];
             let final_res = notox::notox(options, paths_to_check);
-            notox::print_output(options, final_res).unwrap();
+            notox::print_output(&options.verbosity, final_res).unwrap();
         }
     }
 
@@ -95,9 +95,9 @@ mod tests {
     #[test]
     fn test_print_output_verbose_dry() {
         let options = notox::OptionnalFields {
-            dry_run: true,
-            verbose: true,
-            json: notox::JsonFields {
+            options: notox::OptionsFields { dry_run: true },
+            verbosity: notox::VerbosityFields {
+                verbose: true,
                 json: false,
                 json_pretty: false,
                 json_error: false,
@@ -113,7 +113,7 @@ mod tests {
             read_only.clone(),
         ];
         let final_res = notox::notox(&options, paths_to_check);
-        notox::print_output(&options, final_res).unwrap();
+        notox::print_output(&options.verbosity, final_res).unwrap();
 
         // cleanup
         cleanup(&to_correct, &read_only);
@@ -122,9 +122,9 @@ mod tests {
     #[test]
     fn test_print_output_verbose_real() {
         let options = notox::OptionnalFields {
-            dry_run: false,
-            verbose: true,
-            json: notox::JsonFields {
+            options: notox::OptionsFields { dry_run: false },
+            verbosity: notox::VerbosityFields {
+                verbose: true,
                 json: false,
                 json_pretty: false,
                 json_error: false,
@@ -140,7 +140,7 @@ mod tests {
             read_only.clone(),
         ];
         let final_res = notox::notox(&options, paths_to_check);
-        notox::print_output(&options, final_res).unwrap();
+        notox::print_output(&options.verbosity, final_res).unwrap();
 
         // cleanup
         cleanup(&PathBuf::from("tes_t_verbose.txt"), &read_only);
@@ -149,9 +149,9 @@ mod tests {
     #[test]
     fn test_print_output_json_real() {
         let options = notox::OptionnalFields {
-            dry_run: false,
-            verbose: false,
-            json: notox::JsonFields {
+            options: notox::OptionsFields { dry_run: false },
+            verbosity: notox::VerbosityFields {
+                verbose: false,
                 json: true,
                 json_pretty: false,
                 json_error: false,
@@ -167,7 +167,7 @@ mod tests {
             read_only.clone(),
         ];
         let final_res = notox::notox(&options, paths_to_check);
-        notox::print_output(&options, final_res).unwrap();
+        notox::print_output(&options.verbosity, final_res).unwrap();
 
         // cleanup
         cleanup(&PathBuf::from("tes_t_json.txt"), &read_only);
@@ -176,9 +176,9 @@ mod tests {
     #[test]
     fn test_print_output_json_error_real() {
         let options = notox::OptionnalFields {
-            dry_run: false,
-            verbose: false,
-            json: notox::JsonFields {
+            options: notox::OptionsFields { dry_run: false },
+            verbosity: notox::VerbosityFields {
+                verbose: false,
                 json: true,
                 json_pretty: false,
                 json_error: true,
@@ -194,7 +194,7 @@ mod tests {
             read_only.clone(),
         ];
         let final_res = notox::notox(&options, paths_to_check);
-        notox::print_output(&options, final_res).unwrap();
+        notox::print_output(&options.verbosity, final_res).unwrap();
 
         // cleanup
         cleanup(&PathBuf::from("tes_t_json_error.txt"), &read_only)
@@ -203,9 +203,9 @@ mod tests {
     #[test]
     fn test_print_output_json_error_dry() {
         let options = notox::OptionnalFields {
-            dry_run: true,
-            verbose: false,
-            json: notox::JsonFields {
+            options: notox::OptionsFields { dry_run: true },
+            verbosity: notox::VerbosityFields {
+                verbose: false,
                 json: true,
                 json_pretty: false,
                 json_error: true,
@@ -221,7 +221,7 @@ mod tests {
             read_only.clone(),
         ];
         let final_res = notox::notox(&options, paths_to_check);
-        notox::print_output(&options, final_res).unwrap();
+        notox::print_output(&options.verbosity, final_res).unwrap();
 
         // cleanup
         cleanup(&to_correct, &read_only)

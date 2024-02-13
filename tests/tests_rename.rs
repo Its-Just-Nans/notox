@@ -2,9 +2,9 @@
 mod tests {
     use std::path::PathBuf;
     const TESTS_FIELDS_NOT_DRY_RUN: notox::OptionnalFields = notox::OptionnalFields {
-        dry_run: false,
-        verbose: false,
-        json: notox::JsonFields {
+        options: notox::OptionsFields { dry_run: false },
+        verbosity: notox::VerbosityFields {
+            verbose: false,
             json: false,
             json_pretty: false,
             json_error: false,

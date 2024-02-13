@@ -32,6 +32,10 @@ cargo test -- --show-output
 cargo test <test_name>
 ```
 
+## 2024-02-13
+
+- better separation of options - `VerbosityFields` and `OptionsFields`
+
 ## 2024-01-25
 
 - Add tests

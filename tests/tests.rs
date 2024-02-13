@@ -2,8 +2,6 @@
 mod tests {
     use std::{os::unix::fs::PermissionsExt, path::PathBuf};
 
-    use notox::OptionnalFields;
-
     #[test]
     fn test_parse_args_clean_directory() {
         let dir = "src".to_owned();
@@ -18,10 +16,10 @@ mod tests {
             .count();
         assert_eq!(
             options,
-            OptionnalFields {
-                dry_run: true,
-                verbose: false,
-                json: notox::JsonFields {
+            notox::OptionnalFields {
+                options: notox::OptionsFields { dry_run: true },
+                verbosity: notox::VerbosityFields {
+                    verbose: false,
                     json: true,
                     json_pretty: false,
                     json_error: false,
@@ -105,10 +103,10 @@ mod tests {
 
         assert_eq!(
             options,
-            OptionnalFields {
-                dry_run: false,
-                verbose: false,
-                json: notox::JsonFields {
+            notox::OptionnalFields {
+                options: notox::OptionsFields { dry_run: false },
+                verbosity: notox::VerbosityFields {
+                    verbose: false,
                     json: true,
                     json_pretty: false,
                     json_error: false,

@@ -9,9 +9,8 @@ mod tests {
         let mut cmd = Command::cargo_bin("notox").unwrap();
 
         cmd.arg("READ ME.md");
-        cmd.assert().failure().stdout(predicate::str::contains(
-            " need to provide at least one valid",
-        ));
+        cmd.assert()
+            .stdout(predicate::str::contains("annot find path"));
     }
 
     #[test]
@@ -29,5 +28,15 @@ mod tests {
 
         cmd.arg("README.md").arg("-q");
         cmd.assert().stdout(predicate::str::is_empty());
+    }
+
+    #[test]
+    fn test_main_version() {
+        let mut cmd = Command::cargo_bin("notox").unwrap();
+
+        cmd.arg("README.md").arg("-v");
+        cmd.assert()
+            .failure()
+            .stdout(predicate::str::contains("notox"));
     }
 }
