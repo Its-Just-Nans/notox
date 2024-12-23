@@ -5,12 +5,22 @@ cargo +stable install cargo-llvm-cov --locked
 cargo llvm-cov --html
 
 # generate documentation
-cargo install comrak
 mkdir -p dist
-cp -r target/llvm-cov/html dist/coverage
-sed 's|CHANGELOG.md|CHANGELOG.html|g' README.md >README.md.tmp
-comrak --gfm -o dist/index.html --width 80 README.md.tmp
-comrak --gfm -o dist/CHANGELOG.html --width 80 CHANGELOG.md
-
-# cleanup
-rm README.md.tmp
+cargo doc --no-deps
+mv target/doc/* dist/
+rm -rf dist/.lock
+mv target/llvm-cov/html dist/coverage
+cat >dist/index.html <<EOF
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Documentation</title>
+  </head>
+  <body>
+  <script>
+    window.location.href = "./notox/";
+</script>
+    <a href="./notox/">Redirecting to doc</a>
+  </body>
+</html>
+EOF

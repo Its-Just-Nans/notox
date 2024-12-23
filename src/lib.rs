@@ -1,11 +1,26 @@
 //! notox is a tool to clean file names.
+//!
+//! ```shell
+//! cargo install notox
+//! # then use it
+//! notox .
+//! ```
+//!
+//! Coverage is available at [https://n4n5.dev/notox/coverage/](https://n4n5.dev/notox/coverage/)
 
-#![warn(missing_docs)]
+#![deny(
+    missing_docs,
+    clippy::all,
+    clippy::missing_docs_in_private_items,
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::cargo
+)]
 
 use std::{
     ffi::{OsStr, OsString},
     fs::DirEntry,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 #[derive(Debug)]
@@ -58,6 +73,7 @@ pub struct CustomSingleResult {
     pub error: Option<String>,
 }
 
+#[inline]
 fn push_underscore_if(stri: &mut String, to_push: char, condition: bool) {
     if condition {
         stri.push(to_push);
@@ -67,7 +83,7 @@ fn push_underscore_if(stri: &mut String, to_push: char, condition: bool) {
 /// Check if a vector of bytes is similar to a char
 pub fn check_similar(vector: Vec<u8>, name_acc: &mut String, last_was_under: bool) -> bool {
     let vec_to_string = String::from_utf8(vector).unwrap_or("".to_string());
-    for one_char in vec_to_string.chars() {
+    if let Some(one_char) = vec_to_string.chars().next() {
         match one_char {
             'A' | 'Ⓐ' | 'Ａ' | 'À' | 'Á' | 'Â' | 'Ầ' | 'Ấ' | 'Ẫ' | 'Ẩ' | 'Ã' | 'Ā' | 'Ă' | 'Ằ'
             | 'Ắ' | 'Ẵ' | 'Ẳ' | 'Ȧ' | 'Ǡ' | 'Ä' | 'Ǟ' | 'Ả' | 'Å' | 'Ǻ' | 'Ǎ' | 'Ȁ' | 'Ȃ' | 'Ạ'
@@ -232,16 +248,17 @@ pub fn check_similar(vector: Vec<u8>, name_acc: &mut String, last_was_under: boo
         };
         return false;
     }
-    return false;
+    false
 }
 
+/// Clean a name
 fn clean_name(path: &OsStr, _options: &OptionsFields) -> OsString {
     // for each byte of the path if it's not ascii, replace it with _
     let mut new_name = String::new();
     let mut vec_grapheme = Vec::with_capacity(4);
     let mut last_was_underscore = false;
-    for byte in path.as_encoded_bytes().to_owned() {
-        if vec_grapheme.len() == 0 && byte < 128 {
+    for byte in path.as_encoded_bytes().iter().copied() {
+        if vec_grapheme.is_empty() && byte < 128 {
             match byte {
                 0..=44 => {
                     push_underscore_if(&mut new_name, '_', !last_was_underscore);
@@ -280,12 +297,12 @@ fn clean_name(path: &OsStr, _options: &OptionsFields) -> OsString {
                 last_was_underscore =
                     check_similar(vec_grapheme.clone(), &mut new_name, last_was_underscore);
                 vec_grapheme.clear();
-            } else if first_byte >= 224 && first_byte < 240 && vec_grapheme.len() == 3 {
+            } else if (224..240).contains(&first_byte) && vec_grapheme.len() == 3 {
                 // three bytes grapheme
                 last_was_underscore =
                     check_similar(vec_grapheme.clone(), &mut new_name, last_was_underscore);
                 vec_grapheme.clear();
-            } else if first_byte >= 128 && first_byte < 224 && vec_grapheme.len() == 2 {
+            } else if (128..224).contains(&first_byte) && vec_grapheme.len() == 2 {
                 // two bytes grapheme
                 last_was_underscore =
                     check_similar(vec_grapheme.clone(), &mut new_name, last_was_underscore);
@@ -293,9 +310,10 @@ fn clean_name(path: &OsStr, _options: &OptionsFields) -> OsString {
             }
         }
     }
-    return OsString::from(new_name);
+    OsString::from(new_name)
 }
 
+/// Clean a path
 fn clean_path(file_path: &PathBuf, options: &OptionsFields) -> CustomSingleResult {
     let file_name = file_path.file_name();
     if file_name.is_none() {
@@ -306,8 +324,8 @@ fn clean_path(file_path: &PathBuf, options: &OptionsFields) -> CustomSingleResul
         };
     }
     let file_name = file_name.unwrap();
-    let cleaned_name = clean_name(file_name, &options);
-    if &cleaned_name == file_name {
+    let cleaned_name = clean_name(file_name, options);
+    if cleaned_name == file_name {
         return CustomSingleResult {
             path: file_path.to_path_buf(),
             modified: None,
@@ -330,21 +348,24 @@ fn clean_path(file_path: &PathBuf, options: &OptionsFields) -> CustomSingleResul
             error: Some(rename_error.to_string()),
         };
     }
-    return CustomSingleResult {
+    CustomSingleResult {
         path: file_path.to_path_buf(),
         modified: Some(cleaned_path),
         error: None,
-    };
-}
-
-fn is_directory(path: &PathBuf) -> bool {
-    if let Ok(metadata) = std::fs::metadata(path) {
-        metadata.is_dir()
-    } else {
-        false
     }
 }
 
+/// Check if a path is a directory
+#[inline]
+fn is_directory(path: &PathBuf) -> bool {
+    match std::fs::metadata(path) {
+        Ok(metadata) => metadata.is_dir(),
+        Err(_) => false,
+    }
+}
+
+/// Check if a DirEntry is a directory
+#[inline]
 fn is_directory_entry(entry: &DirEntry) -> bool {
     if let Ok(metadata) = entry.metadata() {
         metadata.is_dir()
@@ -353,10 +374,11 @@ fn is_directory_entry(entry: &DirEntry) -> bool {
     }
 }
 
-fn clean_directory(dir_path: &PathBuf, options: &OptionsFields) -> Vec<CustomSingleResult> {
-    let mut dir_path = dir_path.clone();
+/// Clean a directory
+fn clean_directory(dir_path: &Path, options: &OptionsFields) -> Vec<CustomSingleResult> {
+    let mut dir_path = dir_path.to_path_buf();
     let mut res = Vec::new();
-    let res_dir = clean_path(&dir_path, &options);
+    let res_dir = clean_path(&dir_path, options);
     if res_dir.modified.is_some() && !options.dry_run && res_dir.error.is_none() {
         if let Some(ref modified) = res_dir.modified {
             dir_path = modified.clone();
@@ -368,10 +390,10 @@ fn clean_directory(dir_path: &PathBuf, options: &OptionsFields) -> Vec<CustomSin
             if let Ok(entry) = entry {
                 let file_path = entry.path();
                 if is_directory_entry(&entry) {
-                    let e = clean_directory(&file_path, &options);
+                    let e = clean_directory(&file_path, options);
                     res.extend(e);
                 } else {
-                    let e = clean_path(&file_path, &options);
+                    let e = clean_path(&file_path, options);
                     res.push(e);
                 }
             } else {
@@ -389,38 +411,45 @@ fn clean_directory(dir_path: &PathBuf, options: &OptionsFields) -> Vec<CustomSin
             error: Some("Error while reading directory".to_string()),
         });
     }
-    return res;
+    res
 }
 
+/// Clean a path
 fn clean(path: PathBuf, options: &OptionsFields) -> Vec<CustomSingleResult> {
-    if is_directory(&path) {
-        return clean_directory(&path, &options);
-    } else {
-        let res = clean_path(&path, &options);
-        return Vec::from([res]);
+    match is_directory(&path) {
+        true => clean_directory(&path, options),
+        false => {
+            let res = clean_path(&path, options);
+            Vec::from([res])
+        }
     }
 }
 
+/// Get the path of a directory
 fn get_path_of_dir(dir_path: &str) -> Vec<PathBuf> {
     let mut path_to_check: Vec<PathBuf> = Vec::new();
     if let Ok(entries) = std::fs::read_dir(dir_path) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let file_path = entry.path();
-                path_to_check.push(file_path)
-            }
+        for entry in entries.flatten() {
+            let file_path = entry.path();
+            path_to_check.push(file_path)
         }
     }
-    return path_to_check;
+    path_to_check
 }
 
+/// Show the version
 fn show_version() {
+    /// Version of the program
     const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+    /// Authors of the program
     const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
     println!("notox {} by {}", &VERSION, &AUTHORS)
 }
 
 /// Parse the arguments and return the options and the paths to check
+/// # Errors
+/// Return an error if the path is not found
 pub fn parse_args(args: Vec<String>) -> Result<(OptionnalFields, Vec<PathBuf>), i32> {
     let mut dry_run = true;
     let mut verbose = true;
@@ -450,21 +479,17 @@ pub fn parse_args(args: Vec<String>) -> Result<(OptionnalFields, Vec<PathBuf>), 
         } else if one_arg == "*" {
             let paths = get_path_of_dir(".");
             path_to_check.extend(paths);
-        } else {
-            if std::fs::metadata(one_arg).is_ok() {
-                path_to_check.push(PathBuf::from(one_arg))
-            } else {
-                if verbose {
-                    println!("Cannot find path: {}", one_arg);
-                }
-            }
+        } else if std::fs::metadata(one_arg).is_ok() {
+            path_to_check.push(PathBuf::from(one_arg))
+        } else if verbose {
+            println!("Cannot find path: {}", one_arg);
         }
     }
-    if path_to_check.len() == 0 {
+    if path_to_check.is_empty() {
         let paths = get_path_of_dir(".");
         path_to_check.extend(paths);
     }
-    return Ok((
+    Ok((
         OptionnalFields {
             options: OptionsFields { dry_run },
             verbosity: VerbosityFields {
@@ -475,10 +500,12 @@ pub fn parse_args(args: Vec<String>) -> Result<(OptionnalFields, Vec<PathBuf>), 
             },
         },
         path_to_check,
-    ));
+    ))
 }
 
 /// Print the output of the program conforming to the options
+/// # Errors
+/// Return an error if the output cannot be serialized
 pub fn print_output(
     options: &VerbosityFields,
     final_res: Vec<CustomSingleResult>,
@@ -486,17 +513,13 @@ pub fn print_output(
     if options.verbose {
         let len = final_res.len();
         for one_res in final_res {
-            if one_res.modified.is_some() && one_res.error.is_some() {
-                println!(
-                    "{:?} -> {:?} : {}",
-                    one_res.path,
-                    one_res.modified.unwrap(),
-                    one_res.error.unwrap()
-                );
-            } else if one_res.error.is_some() {
-                println!("{:?} : {}", one_res.path, one_res.error.unwrap());
-            } else if one_res.modified.is_some() {
-                println!("{:?} -> {:?}", one_res.path, one_res.modified.unwrap());
+            match (one_res.modified, one_res.error) {
+                (Some(modified), Some(error)) => {
+                    println!("{:?} -> {:?} : {}", one_res.path, modified, error)
+                }
+                (Some(modified), None) => println!("{:?} -> {:?}", one_res.path, modified),
+                (None, Some(error)) => println!("{:?} : {}", one_res.path, error),
+                _ => {}
             }
         }
         if len == 1 {
@@ -550,14 +573,14 @@ pub fn notox(
         let one_res = clean(one_path, &full_options.options);
         final_res.extend(one_res);
     }
-    return final_res;
+    final_res
 }
 
 /// main function of the program: clean and print the output
 pub fn notox_full(full_options: &OptionnalFields, paths_to_check: Vec<PathBuf>) -> i32 {
-    let final_res = notox(&full_options, paths_to_check);
-    if let Err(code) = print_output(&full_options.verbosity, final_res) {
-        return code;
+    let final_res = notox(full_options, paths_to_check);
+    match print_output(&full_options.verbosity, final_res) {
+        Ok(_) => 0,
+        Err(code) => code,
     }
-    0
 }
