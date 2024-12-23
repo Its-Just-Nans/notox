@@ -32,6 +32,11 @@ cargo test -- --show-output
 cargo test <test_name>
 ```
 
+## 2024-12-23
+
+- Clippy the code
+- - Bump to version `1.0.7`
+
 ## 2024-02-13
 
 - better separation of options - `VerbosityFields` and `OptionsFields`
