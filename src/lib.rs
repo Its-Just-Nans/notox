@@ -81,9 +81,8 @@ fn push_underscore_if(stri: &mut String, to_push: char, condition: bool) {
 }
 
 /// Check if a vector of bytes is similar to a char
-pub fn check_similar(vector: Vec<u8>, name_acc: &mut String, last_was_under: bool) -> bool {
-    let vec_to_string = String::from_utf8(vector).unwrap_or("".to_string());
-    if let Some(one_char) = vec_to_string.chars().next() {
+pub fn check_similar(curr_char: Option<char>, name_acc: &mut String, last_was_under: bool) -> bool {
+    if let Some(one_char) = curr_char {
         match one_char {
             'A' | 'Ⓐ' | 'Ａ' | 'À' | 'Á' | 'Â' | 'Ầ' | 'Ấ' | 'Ẫ' | 'Ẩ' | 'Ã' | 'Ā' | 'Ă' | 'Ằ'
             | 'Ắ' | 'Ẵ' | 'Ẳ' | 'Ȧ' | 'Ǡ' | 'Ä' | 'Ǟ' | 'Ả' | 'Å' | 'Ǻ' | 'Ǎ' | 'Ȁ' | 'Ȃ' | 'Ạ'
@@ -251,14 +250,43 @@ pub fn check_similar(vector: Vec<u8>, name_acc: &mut String, last_was_under: boo
     false
 }
 
+/// Convert four bytes to a u32
+#[inline]
+pub fn convert_four_to_u32(
+    first_byte: u8,
+    second_byte: u8,
+    third_byte: u8,
+    fourth_byte: u8,
+) -> u32 {
+    ((first_byte as u32 & 0b0000_0111) << 18)
+        | ((second_byte as u32 & 0b0011_1111) << 12)
+        | ((third_byte as u32 & 0b0011_1111) << 6)
+        | (fourth_byte as u32 & 0b0011_1111)
+}
+
+/// Convert three bytes to a u32
+#[inline]
+pub fn convert_three_to_u32(first_byte: u8, second_byte: u8, third_byte: u8) -> u32 {
+    ((first_byte as u32 & 0b0001_1111) << 12)
+        | ((second_byte as u32 & 0b0011_1111) << 6)
+        | (third_byte as u32 & 0b0011_1111)
+}
+
+/// Convert two bytes to a u32
+#[inline]
+pub fn convert_two_to_u32(first_byte: u8, second_byte: u8) -> u32 {
+    ((first_byte as u32 & 0b0001_1111) << 6) | (second_byte as u32 & 0b0011_1111)
+}
+
 /// Clean a name
 fn clean_name(path: &OsStr, _options: &OptionsFields) -> OsString {
     // for each byte of the path if it's not ascii, replace it with _
     let mut new_name = String::new();
-    let mut vec_grapheme = Vec::with_capacity(4);
+    let mut vec_grapheme: [u8; 4] = [0; 4];
     let mut last_was_underscore = false;
+    let mut idx_grapheme = 0;
     for byte in path.as_encoded_bytes().iter().copied() {
-        if vec_grapheme.is_empty() && byte < 128 {
+        if idx_grapheme == 0 && byte < 128 {
             match byte {
                 0..=44 => {
                     push_underscore_if(&mut new_name, '_', !last_was_underscore);
@@ -289,24 +317,39 @@ fn clean_name(path: &OsStr, _options: &OptionsFields) -> OsString {
                     last_was_underscore = false;
                 }
             }
+            idx_grapheme = 0;
         } else {
-            vec_grapheme.push(byte);
+            vec_grapheme[idx_grapheme] = byte;
+            idx_grapheme += 1;
             let first_byte = vec_grapheme[0];
-            if first_byte >= 240 && vec_grapheme.len() == 4 {
+            if first_byte >= 240 && idx_grapheme == 4 {
                 // four bytes grapheme
-                last_was_underscore =
-                    check_similar(vec_grapheme.clone(), &mut new_name, last_was_underscore);
-                vec_grapheme.clear();
-            } else if (224..240).contains(&first_byte) && vec_grapheme.len() == 3 {
+                let curr_char = std::char::from_u32(convert_four_to_u32(
+                    vec_grapheme[0],
+                    vec_grapheme[1],
+                    vec_grapheme[2],
+                    vec_grapheme[3],
+                ));
+                last_was_underscore = check_similar(curr_char, &mut new_name, last_was_underscore);
+                vec_grapheme = [0; 4];
+                idx_grapheme = 0;
+            } else if (224..240).contains(&first_byte) && idx_grapheme == 3 {
                 // three bytes grapheme
-                last_was_underscore =
-                    check_similar(vec_grapheme.clone(), &mut new_name, last_was_underscore);
-                vec_grapheme.clear();
-            } else if (128..224).contains(&first_byte) && vec_grapheme.len() == 2 {
+                let curr_char = std::char::from_u32(convert_three_to_u32(
+                    vec_grapheme[0],
+                    vec_grapheme[1],
+                    vec_grapheme[2],
+                ));
+                last_was_underscore = check_similar(curr_char, &mut new_name, last_was_underscore);
+                vec_grapheme = [0; 4];
+                idx_grapheme = 0;
+            } else if (128..224).contains(&first_byte) && idx_grapheme == 2 {
                 // two bytes grapheme
-                last_was_underscore =
-                    check_similar(vec_grapheme.clone(), &mut new_name, last_was_underscore);
-                vec_grapheme.clear();
+                let curr_char =
+                    std::char::from_u32(convert_two_to_u32(vec_grapheme[0], vec_grapheme[1]));
+                last_was_underscore = check_similar(curr_char, &mut new_name, last_was_underscore);
+                vec_grapheme = [0; 4];
+                idx_grapheme = 0;
             }
         }
     }
@@ -314,16 +357,17 @@ fn clean_name(path: &OsStr, _options: &OptionsFields) -> OsString {
 }
 
 /// Clean a path
-fn clean_path(file_path: &PathBuf, options: &OptionsFields) -> CustomSingleResult {
-    let file_name = file_path.file_name();
-    if file_name.is_none() {
-        return CustomSingleResult {
-            path: file_path.to_path_buf(),
-            modified: None,
-            error: None,
-        };
-    }
-    let file_name = file_name.unwrap();
+fn clean_path(file_path: &Path, options: &OptionsFields) -> CustomSingleResult {
+    let file_name = match file_path.file_name() {
+        Some(name) => name,
+        None => {
+            return CustomSingleResult {
+                path: file_path.to_path_buf(),
+                modified: None,
+                error: None,
+            };
+        }
+    };
     let cleaned_name = clean_name(file_name, options);
     if cleaned_name == file_name {
         return CustomSingleResult {
@@ -340,24 +384,20 @@ fn clean_path(file_path: &PathBuf, options: &OptionsFields) -> CustomSingleResul
             error: Some("dry-run".to_string()),
         };
     }
-    let is_renamed = std::fs::rename(file_path, &cleaned_path);
-    if let Err(rename_error) = is_renamed {
-        return CustomSingleResult {
-            path: file_path.to_path_buf(),
-            modified: Some(cleaned_path),
-            error: Some(rename_error.to_string()),
-        };
-    }
+    let possible_error = match std::fs::rename(file_path, &cleaned_path) {
+        Ok(_) => None,
+        Err(rename_error) => Some(rename_error.to_string()),
+    };
     CustomSingleResult {
         path: file_path.to_path_buf(),
-        modified: Some(cleaned_path),
-        error: None,
+        modified: Some(cleaned_path.clone()),
+        error: possible_error,
     }
 }
 
 /// Check if a path is a directory
 #[inline]
-fn is_directory(path: &PathBuf) -> bool {
+fn is_directory(path: &Path) -> bool {
     match std::fs::metadata(path) {
         Ok(metadata) => metadata.is_dir(),
         Err(_) => false,
@@ -379,7 +419,8 @@ fn clean_directory(dir_path: &Path, options: &OptionsFields) -> Vec<CustomSingle
     let mut dir_path = dir_path.to_path_buf();
     let mut res = Vec::new();
     let res_dir = clean_path(&dir_path, options);
-    if res_dir.modified.is_some() && !options.dry_run && res_dir.error.is_none() {
+    if !options.dry_run && res_dir.modified.is_some() && res_dir.error.is_none() {
+        // if the directory has been renamed, we need to update the path
         if let Some(ref modified) = res_dir.modified {
             dir_path = modified.clone();
         }
@@ -415,11 +456,11 @@ fn clean_directory(dir_path: &Path, options: &OptionsFields) -> Vec<CustomSingle
 }
 
 /// Clean a path
-fn clean(path: PathBuf, options: &OptionsFields) -> Vec<CustomSingleResult> {
-    match is_directory(&path) {
-        true => clean_directory(&path, options),
+fn clean(path: &Path, options: &OptionsFields) -> Vec<CustomSingleResult> {
+    match is_directory(path) {
+        true => clean_directory(path, options),
         false => {
-            let res = clean_path(&path, options);
+            let res = clean_path(path, options);
             Vec::from([res])
         }
     }
@@ -450,7 +491,7 @@ fn show_version() {
 /// Parse the arguments and return the options and the paths to check
 /// # Errors
 /// Return an error if the path is not found
-pub fn parse_args(args: Vec<String>) -> Result<(OptionnalFields, Vec<PathBuf>), i32> {
+pub fn parse_args(args: &[String]) -> Result<(OptionnalFields, Vec<PathBuf>), i32> {
     let mut dry_run = true;
     let mut verbose = true;
     let mut json = false;
@@ -546,11 +587,12 @@ pub fn print_output(
             } else {
                 serde_json::to_string(&vec_to_json)
             };
-            if let Ok(stringed) = json_string {
-                println!("{}", stringed);
-            } else {
-                println!(r#"{{"error": "Cannot serialize result"}}"#);
-                return Err(2);
+            match json_string {
+                Ok(stringed) => println!("{}", stringed),
+                Err(_) => {
+                    println!(r#"{{"error": "Cannot serialize result"}}"#);
+                    return Err(2);
+                }
             }
         }
     }
@@ -560,7 +602,7 @@ pub fn print_output(
 /// Do the program, return the Vector of result
 pub fn notox(
     full_options: &OptionnalFields,
-    paths_to_check: Vec<PathBuf>,
+    paths_to_check: &[PathBuf],
 ) -> Vec<CustomSingleResult> {
     if full_options.verbosity.verbose {
         println!("Running with options: {:?}", &full_options);
@@ -578,7 +620,7 @@ pub fn notox(
 
 /// main function of the program: clean and print the output
 pub fn notox_full(full_options: &OptionnalFields, paths_to_check: Vec<PathBuf>) -> i32 {
-    let final_res = notox(full_options, paths_to_check);
+    let final_res = notox(full_options, &paths_to_check);
     match print_output(&full_options.verbosity, final_res) {
         Ok(_) => 0,
         Err(code) => code,

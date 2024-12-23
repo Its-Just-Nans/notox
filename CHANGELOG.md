@@ -35,7 +35,10 @@ cargo test <test_name>
 ## 2024-12-23
 
 - Clippy the code
-- - Bump to version `1.0.7`
+- Bump to version `1.0.7`
+- Change syntaxic sugar
+- Change the `Vec<u8>`->`String`->`char` conversion to `[u8; 4]`->`u32` -> `char`
+- Bump to version `1.0.8`
 
 ## 2024-02-13
 

@@ -13,10 +13,7 @@ mod tests {
 
     #[test]
     fn no_rename() {
-        let res = notox::notox(
-            &TESTS_FIELDS_NOT_DRY_RUN,
-            vec![PathBuf::from("my_file").into()],
-        );
+        let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &[PathBuf::from("my_file")]);
         assert_eq!(res.len(), 1);
         assert_eq!(res[0].path, PathBuf::from("my_file"));
         assert_eq!(res[0].modified, None);
@@ -25,7 +22,7 @@ mod tests {
     #[test]
     fn rename() {
         let path = PathBuf::from("my?..file");
-        let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, vec![path.clone().into()]);
+        let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &[path.clone()]);
         assert_eq!(res.len(), 1);
         assert_eq!(res[0].path, path);
         assert_eq!(res[0].modified, Some(PathBuf::from("my_..file")));
@@ -72,8 +69,8 @@ mod tests {
         for one_test in paths.iter() {
             let path_to_test = PathBuf::from(one_test.0);
             let result_to_test = PathBuf::from(one_test.1);
-            print!("Testing: {:?} -> {:?}\n", path_to_test, result_to_test);
-            let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, vec![path_to_test.clone().into()]);
+            println!("Testing: {:?} -> {:?}", path_to_test, result_to_test);
+            let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &[path_to_test.clone()]);
             assert_eq!(res.len(), 1);
             assert_eq!(res[0].path, path_to_test.to_owned());
             assert_eq!(res[0].modified, Some(result_to_test));
@@ -82,7 +79,7 @@ mod tests {
 
     #[test]
     fn ascii_should_not_rename() {
-        let paths = vec![
+        let paths = [
             "my-file.ext",
             "my.file.ext",
             "my/file.ext",
@@ -96,27 +93,21 @@ mod tests {
         ];
         for one_test in paths.iter() {
             let path_to_test = PathBuf::from(one_test);
-            print!("Testing: {:?}\n", path_to_test);
-            let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, vec![path_to_test.clone().into()]);
+            println!("Testing: {:?}", path_to_test);
+            let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &[path_to_test.clone()]);
             assert_eq!(res.len(), 1);
             assert_eq!(res[0].path, path_to_test.to_owned());
             assert_eq!(res[0].modified, None);
         }
     }
 
-    fn is_allowed_but_changed(number: i32) -> (bool, String) {
+    fn is_allowed_but_changed(current_char: char) -> (bool, String) {
         let mut acc: String = String::new();
-        let unicode_char = std::char::from_u32(number as u32);
-        if unicode_char.is_none() {
-            return (false, acc);
-        }
-        let unicode_char = unicode_char.unwrap();
-        let utf8_bytes: Vec<u8> = unicode_char.to_string().into_bytes();
-        notox::check_similar(utf8_bytes, &mut acc, false);
+        notox::check_similar(Some(current_char), &mut acc, false);
         if acc == "_" {
             return (false, acc);
         }
-        return (true, acc);
+        (true, acc)
     }
 
     #[test]
@@ -138,14 +129,16 @@ mod tests {
         for index in 0..(max_unicode_point + 1) {
             let correct_path;
             let unicode_point = index;
-            let options = std::char::from_u32(unicode_point as u32);
-            if options.is_none() {
-                print!("Invalid: {:?}\n", index);
-                continue;
-            }
-            let options = options.unwrap();
-            let path_to_test = PathBuf::from(format!("my{}file.ext", options));
-            let (boo, acc) = is_allowed_but_changed(index);
+            let optionnal_current = std::char::from_u32(unicode_point as u32);
+            let current_char = match optionnal_current {
+                Some(c) => c,
+                None => {
+                    println!("Invalid: {:?}", index);
+                    continue;
+                }
+            };
+            let path_to_test = PathBuf::from(format!("my{}file.ext", current_char));
+            let (boo, acc) = is_allowed_but_changed(current_char);
             if allow_no_change.contains(&index) {
                 correct_path = None;
             } else if diacritics.contains(&index) {
@@ -154,27 +147,97 @@ mod tests {
                 // here format
                 let corrected = format!("my{}file.ext", acc);
                 let corrected = PathBuf::from(corrected);
-                print!(
-                    "Changed: {:?} ({:?}) ({}) -> {:?}\n",
+                println!(
+                    "Changed: {:?} ({:?}) ({}) -> {:?}",
                     path_to_test,
                     index,
-                    options.escape_unicode(),
+                    current_char.escape_unicode(),
                     corrected
                 );
                 correct_path = Some(corrected);
             } else {
                 correct_path = Some(PathBuf::from("my_file.ext"));
             }
-            print!(
-                "Testing: {:?} ({:?}) ({})\n",
+            println!(
+                "Testing: {:?} ({:?}) ({})",
                 path_to_test,
                 index,
-                options.escape_unicode()
+                current_char.escape_unicode()
             );
-            let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, vec![path_to_test.clone().into()]);
+            let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &[path_to_test.clone()]);
             assert_eq!(res.len(), 1);
             assert_eq!(res[0].path, path_to_test.to_owned());
             assert_eq!(res[0].modified, correct_path);
         }
+    }
+
+    #[test]
+    fn test_grapheme_four_conversion() {
+        // 4 bytes grapheme
+        let four_bytes = '💣'; // https://doc.rust-lang.org/std/primitive.char.html#method.len_utf8
+        assert_eq!(four_bytes.len_utf8(), 4);
+        let mut four_bytes_str = String::new();
+        four_bytes_str.push(four_bytes);
+        assert_eq!(four_bytes_str.chars().count(), 1);
+        assert_eq!(four_bytes_str.chars().next().unwrap(), four_bytes);
+        let four_as_bytes = four_bytes_str.as_bytes();
+        let four_bytes_u32 = notox::convert_four_to_u32(
+            four_as_bytes[0],
+            four_as_bytes[1],
+            four_as_bytes[2],
+            four_as_bytes[3],
+        );
+        assert_eq!(four_bytes_u32, four_bytes as u32);
+        let curr_char: Option<char> = std::char::from_u32(four_bytes_u32);
+        assert_eq!(curr_char, Some(four_bytes));
+    }
+
+    #[test]
+    fn test_grapheme_three_conversion() {
+        // 3 bytes grapheme
+        let three_bytes = 'ℝ'; // https://doc.rust-lang.org/std/primitive.char.html#method.len_utf8
+        assert_eq!(three_bytes.len_utf8(), 3);
+        let mut three_bytes_str = String::new();
+        three_bytes_str.push(three_bytes);
+        assert_eq!(three_bytes_str.chars().count(), 1);
+        assert_eq!(three_bytes_str.chars().next().unwrap(), three_bytes);
+        let three_as_bytes = three_bytes_str.as_bytes();
+        let three_bytes_u32 =
+            notox::convert_three_to_u32(three_as_bytes[0], three_as_bytes[1], three_as_bytes[2]);
+        assert_eq!(three_bytes_u32, three_bytes as u32);
+        let curr_char: Option<char> = std::char::from_u32(three_bytes_u32);
+        assert_eq!(curr_char, Some(three_bytes));
+    }
+
+    #[test]
+    fn test_grapheme_two_conversion() {
+        // 2 bytes grapheme
+        let two_bytes = 'ß'; // https://doc.rust-lang.org/std/primitive.char.html#method.len_utf8
+        assert_eq!(two_bytes.len_utf8(), 2);
+        let mut two_bytes_str = String::new();
+        two_bytes_str.push(two_bytes);
+        assert_eq!(two_bytes_str.chars().count(), 1);
+        assert_eq!(two_bytes_str.chars().next().unwrap(), two_bytes);
+        let two_as_bytes = two_bytes_str.as_bytes();
+        let two_bytes_u32 = notox::convert_two_to_u32(two_as_bytes[0], two_as_bytes[1]);
+        assert_eq!(two_bytes_u32, two_bytes as u32);
+        let curr_char: Option<char> = std::char::from_u32(two_bytes_u32);
+        assert_eq!(curr_char, Some(two_bytes));
+    }
+
+    #[test]
+    fn test_grapheme_one_conversion() {
+        // 1 bytes grapheme
+        let one_bytes = 'A'; // https://doc.rust-lang.org/std/primitive.char.html#method.len_utf8
+        assert_eq!(one_bytes.len_utf8(), 1);
+        let mut one_bytes_str = String::new();
+        one_bytes_str.push(one_bytes);
+        assert_eq!(one_bytes_str.chars().count(), 1);
+        assert_eq!(one_bytes_str.chars().next().unwrap(), one_bytes);
+        let one_as_bytes = one_bytes_str.as_bytes();
+        let one_bytes_u32 = one_as_bytes[0] as u32;
+        assert_eq!(one_bytes_u32, one_bytes as u32);
+        let curr_char: Option<char> = std::char::from_u32(one_bytes_u32);
+        assert_eq!(curr_char, Some(one_bytes));
     }
 }

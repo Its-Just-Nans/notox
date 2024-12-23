@@ -4,7 +4,7 @@ mod tests {
 
     #[test]
     fn test_print_output() {
-        let args = vec![
+        let args = [
             notox::OptionnalFields {
                 options: notox::OptionsFields { dry_run: false },
                 verbosity: notox::VerbosityFields {
@@ -61,8 +61,8 @@ mod tests {
             },
         ];
         for options in args.iter() {
-            let paths_to_check = vec![PathBuf::from("README.md")];
-            let final_res = notox::notox(options, paths_to_check);
+            let paths_to_check = [PathBuf::from("README.md")];
+            let final_res = notox::notox(options, &paths_to_check);
             notox::print_output(&options.verbosity, final_res).unwrap();
         }
     }
@@ -82,14 +82,22 @@ mod tests {
 
     fn cleanup(name1: &PathBuf, read_only: &PathBuf) {
         // remove
-        std::fs::remove_file(&name1).unwrap();
+        std::fs::remove_file(name1).unwrap();
 
         // remove read only
-        let mut perms = std::fs::metadata(&read_only).unwrap().permissions();
-        perms.set_readonly(false);
-        std::fs::set_permissions(&read_only, perms).unwrap();
+        let mut perms = std::fs::metadata(read_only).unwrap().permissions();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            perms.set_mode(0o644);
+        }
+        #[cfg(not(unix))]
+        {
+            perms.set_readonly(false);
+        }
+        std::fs::set_permissions(read_only, perms).unwrap();
         // remove
-        std::fs::remove_file(&read_only).unwrap();
+        std::fs::remove_file(read_only).unwrap();
     }
 
     #[test]
@@ -107,12 +115,12 @@ mod tests {
         let read_only = PathBuf::from("test_verbose_dry.txt");
         setup(&to_correct, &read_only);
 
-        let paths_to_check = vec![
+        let paths_to_check = [
             PathBuf::from("README.md"),
             to_correct.clone(),
             read_only.clone(),
         ];
-        let final_res = notox::notox(&options, paths_to_check);
+        let final_res = notox::notox(&options, &paths_to_check);
         notox::print_output(&options.verbosity, final_res).unwrap();
 
         // cleanup
@@ -134,12 +142,12 @@ mod tests {
         let read_only = PathBuf::from("test_verbose.txt");
         setup(&to_correct, &read_only);
 
-        let paths_to_check = vec![
+        let paths_to_check = [
             PathBuf::from("README.md"),
             to_correct.clone(),
             read_only.clone(),
         ];
-        let final_res = notox::notox(&options, paths_to_check);
+        let final_res = notox::notox(&options, &paths_to_check);
         notox::print_output(&options.verbosity, final_res).unwrap();
 
         // cleanup
@@ -161,12 +169,12 @@ mod tests {
         let read_only = PathBuf::from("test_json.txt");
         setup(&to_correct, &read_only);
 
-        let paths_to_check = vec![
+        let paths_to_check = [
             PathBuf::from("README.md"),
             to_correct.clone(),
             read_only.clone(),
         ];
-        let final_res = notox::notox(&options, paths_to_check);
+        let final_res = notox::notox(&options, &paths_to_check);
         notox::print_output(&options.verbosity, final_res).unwrap();
 
         // cleanup
@@ -188,12 +196,12 @@ mod tests {
         let read_only = PathBuf::from("test_json_error.txt");
         setup(&to_correct, &read_only);
 
-        let paths_to_check = vec![
+        let paths_to_check = [
             PathBuf::from("README.md"),
             to_correct.clone(),
             read_only.clone(),
         ];
-        let final_res = notox::notox(&options, paths_to_check);
+        let final_res = notox::notox(&options, &paths_to_check);
         notox::print_output(&options.verbosity, final_res).unwrap();
 
         // cleanup
@@ -215,12 +223,12 @@ mod tests {
         let read_only = PathBuf::from("test_json_error_dry.txt");
         setup(&to_correct, &read_only);
 
-        let paths_to_check = vec![
+        let paths_to_check = [
             PathBuf::from("README.md"),
             to_correct.clone(),
             read_only.clone(),
         ];
-        let final_res = notox::notox(&options, paths_to_check);
+        let final_res = notox::notox(&options, &paths_to_check);
         notox::print_output(&options.verbosity, final_res).unwrap();
 
         // cleanup

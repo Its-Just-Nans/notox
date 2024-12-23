@@ -179,9 +179,9 @@ mod tests {
                 },
             ),
         ];
-        print!("ARGS: {:?}\n", args);
+        println!("ARGS: {:?}", args);
         for one_test in args.iter() {
-            let res = notox::parse_args(one_test.0.clone());
+            let res = notox::parse_args(&one_test.0.clone());
             if let Ok(ok_res) = res {
                 assert_eq!(ok_res.0, one_test.1);
             } else {
@@ -192,12 +192,12 @@ mod tests {
 
     #[test]
     fn test_parse_args_no_file_found() {
-        let vec_args = vec![
+        let vec_args = [
             "notox".to_owned(),
             "README.md".to_owned(),
             "README".to_owned(),
         ];
-        let res = notox::parse_args(vec_args);
+        let res = notox::parse_args(&vec_args);
         let (options, vect) = res.ok().unwrap();
         assert_eq!(
             options,
@@ -216,8 +216,8 @@ mod tests {
 
     #[test]
     fn test_parse_args_star() {
-        let vec_args = vec!["notox".to_owned(), "*".to_owned()];
-        let res = notox::parse_args(vec_args);
+        let vec_args = ["notox".to_owned(), "*".to_owned()];
+        let res = notox::parse_args(&vec_args);
         let (options, vect) = res.ok().unwrap();
         assert_eq!(
             options,

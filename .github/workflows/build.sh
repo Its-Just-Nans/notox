@@ -6,7 +6,7 @@ cargo llvm-cov --html
 
 # generate documentation
 mkdir -p dist
-cargo doc --no-deps
+cargo doc --no-deps --all-features
 mv target/doc/* dist/
 rm -rf dist/.lock
 mv target/llvm-cov/html dist/coverage
