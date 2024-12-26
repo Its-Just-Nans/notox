@@ -72,7 +72,7 @@ mod tests {
             println!("Testing: {:?} -> {:?}", path_to_test, result_to_test);
             let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &[path_to_test.clone()]);
             assert_eq!(res.len(), 1);
-            assert_eq!(res[0].path, path_to_test.to_owned());
+            assert_eq!(res[0].path, path_to_test);
             assert_eq!(res[0].modified, Some(result_to_test));
         }
     }
@@ -96,7 +96,7 @@ mod tests {
             println!("Testing: {:?}", path_to_test);
             let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &[path_to_test.clone()]);
             assert_eq!(res.len(), 1);
-            assert_eq!(res[0].path, path_to_test.to_owned());
+            assert_eq!(res[0].path, path_to_test);
             assert_eq!(res[0].modified, None);
         }
     }
@@ -166,7 +166,7 @@ mod tests {
             );
             let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &[path_to_test.clone()]);
             assert_eq!(res.len(), 1);
-            assert_eq!(res[0].path, path_to_test.to_owned());
+            assert_eq!(res[0].path, path_to_test);
             assert_eq!(res[0].modified, correct_path);
         }
     }

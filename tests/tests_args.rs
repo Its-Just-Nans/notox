@@ -5,7 +5,7 @@ mod tests {
     fn test_parse_args() {
         let args = vec![
             (
-                vec!["notox".to_owned(), "README.md".to_owned()],
+                vec!["notox".to_string(), "README.md".to_string()],
                 notox::OptionnalFields {
                     options: notox::OptionsFields { dry_run: true },
                     verbosity: notox::VerbosityFields {
@@ -17,7 +17,11 @@ mod tests {
                 },
             ),
             (
-                vec!["notox".to_owned(), "README.md".to_owned(), "-d".to_owned()],
+                vec![
+                    "notox".to_string(),
+                    "README.md".to_string(),
+                    "-d".to_string(),
+                ],
                 notox::OptionnalFields {
                     options: notox::OptionsFields { dry_run: false },
                     verbosity: notox::VerbosityFields {
@@ -30,10 +34,10 @@ mod tests {
             ),
             (
                 vec![
-                    "notox".to_owned(),
-                    "README.md".to_owned(),
-                    "-d".to_owned(),
-                    "-j".to_owned(),
+                    "notox".to_string(),
+                    "README.md".to_string(),
+                    "-d".to_string(),
+                    "-j".to_string(),
                 ],
                 notox::OptionnalFields {
                     options: notox::OptionsFields { dry_run: false },
@@ -47,10 +51,10 @@ mod tests {
             ),
             (
                 vec![
-                    "notox".to_owned(),
-                    "README.md".to_owned(),
-                    "-d".to_owned(),
-                    "--json".to_owned(),
+                    "notox".to_string(),
+                    "README.md".to_string(),
+                    "-d".to_string(),
+                    "--json".to_string(),
                 ],
                 notox::OptionnalFields {
                     options: notox::OptionsFields { dry_run: false },
@@ -64,10 +68,10 @@ mod tests {
             ),
             (
                 vec![
-                    "notox".to_owned(),
-                    "README.md".to_owned(),
-                    "-d".to_owned(),
-                    "-e".to_owned(),
+                    "notox".to_string(),
+                    "README.md".to_string(),
+                    "-d".to_string(),
+                    "-e".to_string(),
                 ],
                 notox::OptionnalFields {
                     options: notox::OptionsFields { dry_run: false },
@@ -81,10 +85,10 @@ mod tests {
             ),
             (
                 vec![
-                    "notox".to_owned(),
-                    "README.md".to_owned(),
-                    "-d".to_owned(),
-                    "--json-error".to_owned(),
+                    "notox".to_string(),
+                    "README.md".to_string(),
+                    "-d".to_string(),
+                    "--json-error".to_string(),
                 ],
                 notox::OptionnalFields {
                     options: notox::OptionsFields { dry_run: false },
@@ -98,10 +102,10 @@ mod tests {
             ),
             (
                 vec![
-                    "notox".to_owned(),
-                    "README.md".to_owned(),
-                    "-d".to_owned(),
-                    "-p".to_owned(),
+                    "notox".to_string(),
+                    "README.md".to_string(),
+                    "-d".to_string(),
+                    "-p".to_string(),
                 ],
                 notox::OptionnalFields {
                     options: notox::OptionsFields { dry_run: false },
@@ -115,10 +119,10 @@ mod tests {
             ),
             (
                 vec![
-                    "notox".to_owned(),
-                    "README.md".to_owned(),
-                    "-d".to_owned(),
-                    "--json-pretty".to_owned(),
+                    "notox".to_string(),
+                    "README.md".to_string(),
+                    "-d".to_string(),
+                    "--json-pretty".to_string(),
                 ],
                 notox::OptionnalFields {
                     options: notox::OptionsFields { dry_run: false },
@@ -131,7 +135,7 @@ mod tests {
                 },
             ),
             (
-                vec!["notox".to_owned(), "-v".to_owned()],
+                vec!["notox".to_string(), "-v".to_string()],
                 notox::OptionnalFields {
                     options: notox::OptionsFields { dry_run: true },
                     verbosity: notox::VerbosityFields {
@@ -143,7 +147,7 @@ mod tests {
                 },
             ),
             (
-                vec!["notox".to_owned(), "--version".to_owned()],
+                vec!["notox".to_string(), "--version".to_string()],
                 notox::OptionnalFields {
                     options: notox::OptionsFields { dry_run: true },
                     verbosity: notox::VerbosityFields {
@@ -155,7 +159,7 @@ mod tests {
                 },
             ),
             (
-                vec!["notox".to_owned(), "-q".to_owned()],
+                vec!["notox".to_string(), "-q".to_string()],
                 notox::OptionnalFields {
                     options: notox::OptionsFields { dry_run: true },
                     verbosity: notox::VerbosityFields {
@@ -167,7 +171,7 @@ mod tests {
                 },
             ),
             (
-                vec!["notox".to_owned(), "--quiet".to_owned()],
+                vec!["notox".to_string(), "--quiet".to_string()],
                 notox::OptionnalFields {
                     options: notox::OptionsFields { dry_run: true },
                     verbosity: notox::VerbosityFields {
@@ -193,9 +197,9 @@ mod tests {
     #[test]
     fn test_parse_args_no_file_found() {
         let vec_args = [
-            "notox".to_owned(),
-            "README.md".to_owned(),
-            "README".to_owned(),
+            "notox".to_string(),
+            "README.md".to_string(),
+            "README".to_string(),
         ];
         let res = notox::parse_args(&vec_args);
         let (options, vect) = res.ok().unwrap();
@@ -216,7 +220,7 @@ mod tests {
 
     #[test]
     fn test_parse_args_star() {
-        let vec_args = ["notox".to_owned(), "*".to_owned()];
+        let vec_args = ["notox".to_string(), "*".to_string()];
         let res = notox::parse_args(&vec_args);
         let (options, vect) = res.ok().unwrap();
         assert_eq!(

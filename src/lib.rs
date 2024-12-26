@@ -81,6 +81,7 @@ fn push_underscore_if(stri: &mut String, to_push: char, condition: bool) {
 }
 
 /// Check if a vector of bytes is similar to a char
+#[inline]
 pub fn check_similar(curr_char: Option<char>, name_acc: &mut String, last_was_under: bool) -> bool {
     if let Some(one_char) = curr_char {
         match one_char {
@@ -395,15 +396,6 @@ fn clean_path(file_path: &Path, options: &OptionsFields) -> CustomSingleResult {
     }
 }
 
-/// Check if a path is a directory
-#[inline]
-fn is_directory(path: &Path) -> bool {
-    match std::fs::metadata(path) {
-        Ok(metadata) => metadata.is_dir(),
-        Err(_) => false,
-    }
-}
-
 /// Check if a DirEntry is a directory
 #[inline]
 fn is_directory_entry(entry: &DirEntry) -> bool {
@@ -417,7 +409,7 @@ fn is_directory_entry(entry: &DirEntry) -> bool {
 /// Clean a directory
 fn clean_directory(dir_path: &Path, options: &OptionsFields) -> Vec<CustomSingleResult> {
     let mut dir_path = dir_path.to_path_buf();
-    let mut res = Vec::new();
+    let mut result_vec = Vec::new();
     let res_dir = clean_path(&dir_path, options);
     if !options.dry_run && res_dir.modified.is_some() && res_dir.error.is_none() {
         // if the directory has been renamed, we need to update the path
@@ -425,20 +417,20 @@ fn clean_directory(dir_path: &Path, options: &OptionsFields) -> Vec<CustomSingle
             dir_path = modified.clone();
         }
     }
-    res.push(res_dir);
+    result_vec.push(res_dir);
     if let Ok(entries) = std::fs::read_dir(&dir_path) {
         for entry in entries {
             if let Ok(entry) = entry {
                 let file_path = entry.path();
                 if is_directory_entry(&entry) {
                     let e = clean_directory(&file_path, options);
-                    res.extend(e);
+                    result_vec.extend(e);
                 } else {
                     let e = clean_path(&file_path, options);
-                    res.push(e);
+                    result_vec.push(e);
                 }
             } else {
-                res.push(CustomSingleResult {
+                result_vec.push(CustomSingleResult {
                     path: dir_path.clone(),
                     modified: None,
                     error: Some("Entry error".to_string()),
@@ -446,24 +438,13 @@ fn clean_directory(dir_path: &Path, options: &OptionsFields) -> Vec<CustomSingle
             }
         }
     } else {
-        res.push(CustomSingleResult {
+        result_vec.push(CustomSingleResult {
             path: dir_path,
             modified: None,
             error: Some("Error while reading directory".to_string()),
         });
     }
-    res
-}
-
-/// Clean a path
-fn clean(path: &Path, options: &OptionsFields) -> Vec<CustomSingleResult> {
-    match is_directory(path) {
-        true => clean_directory(path, options),
-        false => {
-            let res = clean_path(path, options);
-            Vec::from([res])
-        }
-    }
+    result_vec
 }
 
 /// Get the path of a directory
@@ -612,7 +593,11 @@ pub fn notox(
         if full_options.verbosity.verbose {
             println!("Checking: {:?}", one_path);
         }
-        let one_res = clean(one_path, &full_options.options);
+        let one_res = if one_path.is_dir() {
+            clean_directory(one_path, &full_options.options)
+        } else {
+            Vec::from([clean_path(one_path, &full_options.options)])
+        };
         final_res.extend(one_res);
     }
     final_res

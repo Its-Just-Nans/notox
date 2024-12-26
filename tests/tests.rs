@@ -4,8 +4,8 @@ mod tests {
 
     #[test]
     fn test_parse_args_clean_directory() {
-        let dir = "src".to_owned();
-        let vec_args = ["notox".to_owned(), dir.clone(), "-j".to_owned()];
+        let dir = "src".to_string();
+        let vec_args = ["notox".to_string(), dir.clone(), "-j".to_string()];
         let res = notox::parse_args(&vec_args);
         let (options, vect) = res.ok().unwrap();
         let res_path = notox::notox(&options, &vect);
@@ -36,7 +36,8 @@ mod tests {
     }
 
     fn setup(dir: &String) {
-        let directory_path = PathBuf::from(&dir);
+        let directory_path = PathBuf::from(dir);
+        std::fs::remove_dir_all(&directory_path).unwrap_or(());
         std::fs::create_dir(&directory_path).unwrap();
         std::fs::File::create(directory_path.join("test 1.txt")).unwrap();
         std::fs::File::create(directory_path.join("test_2.txt")).unwrap();
@@ -88,14 +89,14 @@ mod tests {
 
     #[test]
     fn test_parse_args_clean_directory_recursive() {
-        let dir = "test_folder".to_owned();
+        let dir = "test_folder".to_string();
         setup(&dir);
 
         let vec_args = [
-            "notox".to_owned(),
+            "notox".to_string(),
             dir.clone(),
-            "-j".to_owned(),
-            "-d".to_owned(),
+            "-j".to_string(),
+            "-d".to_string(),
         ];
         let res = notox::parse_args(&vec_args);
         let (options, vect) = res.ok().unwrap();
@@ -108,6 +109,32 @@ mod tests {
                 verbosity: notox::VerbosityFields {
                     verbose: false,
                     json: true,
+                    json_pretty: false,
+                    json_error: false,
+                },
+            }
+        );
+        assert_eq!(res_path.len(), 5);
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn test_parse_args_clean_directory_recursive_verbose() {
+        let dir = "test_folder_verbose".to_string();
+        setup(&dir);
+
+        let vec_args = ["notox".to_string(), dir.clone(), "-d".to_string()];
+        let res = notox::parse_args(&vec_args);
+        let (options, vect) = res.ok().unwrap();
+        let res_path = notox::notox(&options, &vect);
+
+        assert_eq!(
+            options,
+            notox::OptionnalFields {
+                options: notox::OptionsFields { dry_run: false },
+                verbosity: notox::VerbosityFields {
+                    verbose: true,
+                    json: false,
                     json_pretty: false,
                     json_error: false,
                 },
