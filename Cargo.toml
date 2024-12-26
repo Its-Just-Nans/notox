@@ -9,7 +9,7 @@ license = "MIT"
 homepage = "https://github.com/Its-Just-Nans/notox"
 repository = "https://github.com/Its-Just-Nans/notox"
 keywords = ["clean", "filename", "file", "filesystem", "tool"]
-
+documentation = "https://docs.rs/notox"
 
 [[bin]]
 name = "notox"
