@@ -6,7 +6,7 @@ mod tests {
         let args = vec![
             (
                 vec!["notox".to_string(), "README.md".to_string()],
-                notox::OptionnalFields {
+                notox::OptionalFields {
                     options: notox::OptionsFields { dry_run: true },
                     verbosity: notox::VerbosityFields {
                         verbose: true,
@@ -22,7 +22,7 @@ mod tests {
                     "README.md".to_string(),
                     "-d".to_string(),
                 ],
-                notox::OptionnalFields {
+                notox::OptionalFields {
                     options: notox::OptionsFields { dry_run: false },
                     verbosity: notox::VerbosityFields {
                         verbose: true,
@@ -39,7 +39,7 @@ mod tests {
                     "-d".to_string(),
                     "-j".to_string(),
                 ],
-                notox::OptionnalFields {
+                notox::OptionalFields {
                     options: notox::OptionsFields { dry_run: false },
                     verbosity: notox::VerbosityFields {
                         verbose: false,
@@ -56,7 +56,7 @@ mod tests {
                     "-d".to_string(),
                     "--json".to_string(),
                 ],
-                notox::OptionnalFields {
+                notox::OptionalFields {
                     options: notox::OptionsFields { dry_run: false },
                     verbosity: notox::VerbosityFields {
                         verbose: false,
@@ -73,7 +73,7 @@ mod tests {
                     "-d".to_string(),
                     "-e".to_string(),
                 ],
-                notox::OptionnalFields {
+                notox::OptionalFields {
                     options: notox::OptionsFields { dry_run: false },
                     verbosity: notox::VerbosityFields {
                         verbose: false,
@@ -90,7 +90,7 @@ mod tests {
                     "-d".to_string(),
                     "--json-error".to_string(),
                 ],
-                notox::OptionnalFields {
+                notox::OptionalFields {
                     options: notox::OptionsFields { dry_run: false },
                     verbosity: notox::VerbosityFields {
                         verbose: false,
@@ -107,7 +107,7 @@ mod tests {
                     "-d".to_string(),
                     "-p".to_string(),
                 ],
-                notox::OptionnalFields {
+                notox::OptionalFields {
                     options: notox::OptionsFields { dry_run: false },
                     verbosity: notox::VerbosityFields {
                         verbose: false,
@@ -124,7 +124,7 @@ mod tests {
                     "-d".to_string(),
                     "--json-pretty".to_string(),
                 ],
-                notox::OptionnalFields {
+                notox::OptionalFields {
                     options: notox::OptionsFields { dry_run: false },
                     verbosity: notox::VerbosityFields {
                         verbose: false,
@@ -136,7 +136,7 @@ mod tests {
             ),
             (
                 vec!["notox".to_string(), "-v".to_string()],
-                notox::OptionnalFields {
+                notox::OptionalFields {
                     options: notox::OptionsFields { dry_run: true },
                     verbosity: notox::VerbosityFields {
                         verbose: false,
@@ -148,7 +148,7 @@ mod tests {
             ),
             (
                 vec!["notox".to_string(), "--version".to_string()],
-                notox::OptionnalFields {
+                notox::OptionalFields {
                     options: notox::OptionsFields { dry_run: true },
                     verbosity: notox::VerbosityFields {
                         verbose: false,
@@ -160,7 +160,7 @@ mod tests {
             ),
             (
                 vec!["notox".to_string(), "-q".to_string()],
-                notox::OptionnalFields {
+                notox::OptionalFields {
                     options: notox::OptionsFields { dry_run: true },
                     verbosity: notox::VerbosityFields {
                         verbose: false,
@@ -172,7 +172,7 @@ mod tests {
             ),
             (
                 vec!["notox".to_string(), "--quiet".to_string()],
-                notox::OptionnalFields {
+                notox::OptionalFields {
                     options: notox::OptionsFields { dry_run: true },
                     verbosity: notox::VerbosityFields {
                         verbose: false,
@@ -205,7 +205,7 @@ mod tests {
         let (options, vect) = res.ok().unwrap();
         assert_eq!(
             options,
-            notox::OptionnalFields {
+            notox::OptionalFields {
                 options: notox::OptionsFields { dry_run: true },
                 verbosity: notox::VerbosityFields {
                     verbose: true,
@@ -225,7 +225,7 @@ mod tests {
         let (options, vect) = res.ok().unwrap();
         assert_eq!(
             options,
-            notox::OptionnalFields {
+            notox::OptionalFields {
                 options: notox::OptionsFields { dry_run: true },
                 verbosity: notox::VerbosityFields {
                     verbose: true,

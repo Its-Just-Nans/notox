@@ -16,7 +16,7 @@ mod tests {
             .count();
         assert_eq!(
             options,
-            notox::OptionnalFields {
+            notox::OptionalFields {
                 options: notox::OptionsFields { dry_run: true },
                 verbosity: notox::VerbosityFields {
                     verbose: false,
@@ -104,7 +104,7 @@ mod tests {
 
         assert_eq!(
             options,
-            notox::OptionnalFields {
+            notox::OptionalFields {
                 options: notox::OptionsFields { dry_run: false },
                 verbosity: notox::VerbosityFields {
                     verbose: false,
@@ -130,7 +130,7 @@ mod tests {
 
         assert_eq!(
             options,
-            notox::OptionnalFields {
+            notox::OptionalFields {
                 options: notox::OptionsFields { dry_run: false },
                 verbosity: notox::VerbosityFields {
                     verbose: true,

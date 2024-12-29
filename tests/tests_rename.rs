@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
-    const TESTS_FIELDS_NOT_DRY_RUN: notox::OptionnalFields = notox::OptionnalFields {
+    const TESTS_FIELDS_NOT_DRY_RUN: notox::OptionalFields = notox::OptionalFields {
         options: notox::OptionsFields { dry_run: false },
         verbosity: notox::VerbosityFields {
             verbose: false,
@@ -129,8 +129,8 @@ mod tests {
         for index in 0..(max_unicode_point + 1) {
             let correct_path;
             let unicode_point = index;
-            let optionnal_current = std::char::from_u32(unicode_point as u32);
-            let current_char = match optionnal_current {
+            let optional_current = std::char::from_u32(unicode_point as u32);
+            let current_char = match optional_current {
                 Some(c) => c,
                 None => {
                     println!("Invalid: {:?}", index);

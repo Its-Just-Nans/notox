@@ -24,7 +24,7 @@ use std::{
 };
 
 #[derive(Debug)]
-/// Contains informations about verbosity options
+/// Contains information about verbosity options
 pub struct VerbosityFields {
     /// if true, the program will print json
     pub json: bool,
@@ -37,7 +37,7 @@ pub struct VerbosityFields {
 }
 
 #[derive(Debug)]
-/// contains informations about cleaning options
+/// contains information about cleaning options
 pub struct OptionsFields {
     /// if true, the program will not rename files
     pub dry_run: bool,
@@ -45,15 +45,15 @@ pub struct OptionsFields {
 
 #[derive(Debug)]
 /// Options for the program
-pub struct OptionnalFields {
+pub struct OptionalFields {
     /// if true, the program will not rename files
     pub options: OptionsFields,
-    /// contains informations about JsonFields
+    /// contains information about JsonFields
     pub verbosity: VerbosityFields,
 }
 
-impl PartialEq<OptionnalFields> for OptionnalFields {
-    fn eq(&self, other: &OptionnalFields) -> bool {
+impl PartialEq<OptionalFields> for OptionalFields {
+    fn eq(&self, other: &OptionalFields) -> bool {
         self.options.dry_run == other.options.dry_run
             && self.verbosity.verbose == other.verbosity.verbose
             && self.verbosity.json == other.verbosity.json
@@ -63,7 +63,7 @@ impl PartialEq<OptionnalFields> for OptionnalFields {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
-/// Contains informations about a result of a single file
+/// Contains information about a result of a single file
 pub struct CustomSingleResult {
     /// path of the file
     pub path: PathBuf,
@@ -472,7 +472,7 @@ fn show_version() {
 /// Parse the arguments and return the options and the paths to check
 /// # Errors
 /// Return an error if the path is not found
-pub fn parse_args(args: &[String]) -> Result<(OptionnalFields, Vec<PathBuf>), i32> {
+pub fn parse_args(args: &[String]) -> Result<(OptionalFields, Vec<PathBuf>), i32> {
     let mut dry_run = true;
     let mut verbose = true;
     let mut json = false;
@@ -512,7 +512,7 @@ pub fn parse_args(args: &[String]) -> Result<(OptionnalFields, Vec<PathBuf>), i3
         path_to_check.extend(paths);
     }
     Ok((
-        OptionnalFields {
+        OptionalFields {
             options: OptionsFields { dry_run },
             verbosity: VerbosityFields {
                 verbose,
@@ -582,7 +582,7 @@ pub fn print_output(
 
 /// Do the program, return the Vector of result
 pub fn notox(
-    full_options: &OptionnalFields,
+    full_options: &OptionalFields,
     paths_to_check: &[PathBuf],
 ) -> Vec<CustomSingleResult> {
     if full_options.verbosity.verbose {
@@ -604,7 +604,7 @@ pub fn notox(
 }
 
 /// main function of the program: clean and print the output
-pub fn notox_full(full_options: &OptionnalFields, paths_to_check: Vec<PathBuf>) -> i32 {
+pub fn notox_full(full_options: &OptionalFields, paths_to_check: Vec<PathBuf>) -> i32 {
     let final_res = notox(full_options, &paths_to_check);
     match print_output(&full_options.verbosity, final_res) {
         Ok(_) => 0,

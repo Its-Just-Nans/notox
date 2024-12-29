@@ -5,7 +5,7 @@ mod tests {
     #[test]
     fn test_print_output() {
         let args = [
-            notox::OptionnalFields {
+            notox::OptionalFields {
                 options: notox::OptionsFields { dry_run: false },
                 verbosity: notox::VerbosityFields {
                     verbose: true,
@@ -14,7 +14,7 @@ mod tests {
                     json_error: false,
                 },
             },
-            notox::OptionnalFields {
+            notox::OptionalFields {
                 options: notox::OptionsFields { dry_run: true },
                 verbosity: notox::VerbosityFields {
                     verbose: true,
@@ -23,7 +23,7 @@ mod tests {
                     json_error: false,
                 },
             },
-            notox::OptionnalFields {
+            notox::OptionalFields {
                 options: notox::OptionsFields { dry_run: true },
                 verbosity: notox::VerbosityFields {
                     verbose: false,
@@ -32,7 +32,7 @@ mod tests {
                     json_error: false,
                 },
             },
-            notox::OptionnalFields {
+            notox::OptionalFields {
                 options: notox::OptionsFields { dry_run: true },
                 verbosity: notox::VerbosityFields {
                     verbose: false,
@@ -41,7 +41,7 @@ mod tests {
                     json_error: true,
                 },
             },
-            notox::OptionnalFields {
+            notox::OptionalFields {
                 options: notox::OptionsFields { dry_run: true },
                 verbosity: notox::VerbosityFields {
                     verbose: false,
@@ -50,7 +50,7 @@ mod tests {
                     json_error: false,
                 },
             },
-            notox::OptionnalFields {
+            notox::OptionalFields {
                 options: notox::OptionsFields { dry_run: true },
                 verbosity: notox::VerbosityFields {
                     verbose: false,
@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_print_output_verbose_dry() {
-        let options = notox::OptionnalFields {
+        let options = notox::OptionalFields {
             options: notox::OptionsFields { dry_run: true },
             verbosity: notox::VerbosityFields {
                 verbose: true,
@@ -129,7 +129,7 @@ mod tests {
 
     #[test]
     fn test_print_output_verbose_real() {
-        let options = notox::OptionnalFields {
+        let options = notox::OptionalFields {
             options: notox::OptionsFields { dry_run: false },
             verbosity: notox::VerbosityFields {
                 verbose: true,
@@ -156,7 +156,7 @@ mod tests {
 
     #[test]
     fn test_print_output_json_real() {
-        let options = notox::OptionnalFields {
+        let options = notox::OptionalFields {
             options: notox::OptionsFields { dry_run: false },
             verbosity: notox::VerbosityFields {
                 verbose: false,
@@ -183,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_print_output_json_error_real() {
-        let options = notox::OptionnalFields {
+        let options = notox::OptionalFields {
             options: notox::OptionsFields { dry_run: false },
             verbosity: notox::VerbosityFields {
                 verbose: false,
@@ -210,7 +210,7 @@ mod tests {
 
     #[test]
     fn test_print_output_json_error_dry() {
-        let options = notox::OptionnalFields {
+        let options = notox::OptionalFields {
             options: notox::OptionsFields { dry_run: true },
             verbosity: notox::VerbosityFields {
                 verbose: false,

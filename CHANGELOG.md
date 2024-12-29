@@ -32,6 +32,11 @@ cargo test -- --show-output
 cargo test <test_name>
 ```
 
+## 2024-12-29
+
+- Fix typos
+- Bump to version `1.0.10`
+
 ## 2024-12-26
 
 - Cleaner code (function removed)
