@@ -18,12 +18,13 @@
 )]
 
 use std::{
+    collections::HashSet,
     ffi::{OsStr, OsString},
     fs::DirEntry,
     path::{Path, PathBuf},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Contains information about verbosity options
 pub struct VerbosityFields {
     /// if true, the program will print json
@@ -36,14 +37,14 @@ pub struct VerbosityFields {
     pub verbose: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// contains information about cleaning options
 pub struct OptionsFields {
     /// if true, the program will not rename files
     pub dry_run: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Options for the program
 pub struct OptionalFields {
     /// if true, the program will not rename files
@@ -463,7 +464,6 @@ fn get_path_of_dir(dir_path: &str) -> Vec<PathBuf> {
 fn show_version() {
     /// Version of the program
     const VERSION: &str = env!("CARGO_PKG_VERSION");
-
     /// Authors of the program
     const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
     println!("notox {} by {}", &VERSION, &AUTHORS)
@@ -472,16 +472,28 @@ fn show_version() {
 /// Parse the arguments and return the options and the paths to check
 /// # Errors
 /// Return an error if the path is not found
-pub fn parse_args(args: &[String]) -> Result<(OptionalFields, Vec<PathBuf>), i32> {
+pub fn parse_args(args: &[String]) -> Result<(OptionalFields, HashSet<PathBuf>), i32> {
     let mut dry_run = true;
     let mut verbose = true;
     let mut json = false;
     let mut json_pretty = false;
     let mut json_error = false;
-    let mut path_to_check: Vec<PathBuf> = Vec::new();
+    let mut path_to_check: HashSet<PathBuf> = HashSet::new();
     for one_arg in &args[1..] {
         if one_arg == "-d" || one_arg == "--do" {
             dry_run = false;
+        } else if one_arg == "-h" || one_arg == "--help" {
+            println!("Usage: notox [options] [path]");
+            show_version();
+            println!("Options:");
+            println!("  -d, --do          Do the renaming");
+            println!("  -h, --help        Show this help message");
+            println!("  -v, --version     Show the version");
+            println!("  -p, --json-pretty Print the result in JSON format (pretty)");
+            println!("  -e, --json-error  Print only the errors in JSON format");
+            println!("  -j, --json        Print the result in JSON format");
+            println!("  -q, --quiet       Do not print anything");
+            return Err(1);
         } else if one_arg == "-v" || one_arg == "--version" {
             show_version();
             return Err(1);
@@ -502,7 +514,7 @@ pub fn parse_args(args: &[String]) -> Result<(OptionalFields, Vec<PathBuf>), i32
             let paths = get_path_of_dir(".");
             path_to_check.extend(paths);
         } else if std::fs::metadata(one_arg).is_ok() {
-            path_to_check.push(PathBuf::from(one_arg))
+            path_to_check.insert(PathBuf::from(one_arg));
         } else if verbose {
             println!("Cannot find path: {}", one_arg);
         }
@@ -583,31 +595,59 @@ pub fn print_output(
 /// Do the program, return the Vector of result
 pub fn notox(
     full_options: &OptionalFields,
-    paths_to_check: &[PathBuf],
+    paths_to_check: &HashSet<PathBuf>,
 ) -> Vec<CustomSingleResult> {
-    if full_options.verbosity.verbose {
-        println!("Running with options: {:?}", &full_options);
-    }
-    let mut final_res = Vec::new();
-    for one_path in paths_to_check {
-        if full_options.verbosity.verbose {
-            println!("Checking: {:?}", one_path);
-        }
-        let one_res = if one_path.is_dir() {
-            clean_directory(one_path, &full_options.options)
-        } else {
-            Vec::from([clean_path(one_path, &full_options.options)])
-        };
-        final_res.extend(one_res);
-    }
-    final_res
+    Notox::new(full_options, paths_to_check).run()
 }
 
 /// main function of the program: clean and print the output
-pub fn notox_full(full_options: &OptionalFields, paths_to_check: Vec<PathBuf>) -> i32 {
-    let final_res = notox(full_options, &paths_to_check);
-    match print_output(&full_options.verbosity, final_res) {
-        Ok(_) => 0,
-        Err(code) => code,
+pub fn notox_full(full_options: &OptionalFields, paths_to_check: HashSet<PathBuf>) -> i32 {
+    Notox::new(full_options, &paths_to_check).run_and_print()
+}
+
+/// Notox struct
+pub struct Notox {
+    /// Options
+    optional_fields: OptionalFields,
+    /// The paths to check
+    paths_to_check: HashSet<PathBuf>,
+}
+
+impl Notox {
+    /// Create a new Notox instance
+    pub fn new(optional_fields: &OptionalFields, paths_to_check: &HashSet<PathBuf>) -> Notox {
+        Notox {
+            optional_fields: optional_fields.clone(),
+            paths_to_check: paths_to_check.clone(),
+        }
+    }
+
+    /// Run the Notox instance
+    pub fn run(&self) -> Vec<CustomSingleResult> {
+        if self.optional_fields.verbosity.verbose {
+            println!("Running with options: {:?}", &self.optional_fields);
+        }
+        let mut final_res = Vec::new();
+        for one_path in &self.paths_to_check {
+            if self.optional_fields.verbosity.verbose {
+                println!("Checking: {:?}", one_path);
+            }
+            let one_res = if one_path.is_dir() {
+                clean_directory(one_path, &self.optional_fields.options)
+            } else {
+                Vec::from([clean_path(one_path, &self.optional_fields.options)])
+            };
+            final_res.extend(one_res);
+        }
+        final_res
+    }
+
+    /// Run the Notox instance and print the output
+    pub fn run_and_print(self) -> i32 {
+        let final_res = self.run();
+        match print_output(&self.optional_fields.verbosity, final_res) {
+            Ok(_) => 0,
+            Err(code) => code,
+        }
     }
 }

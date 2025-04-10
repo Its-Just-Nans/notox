@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{collections::HashSet, path::PathBuf};
     const TESTS_FIELDS_NOT_DRY_RUN: notox::OptionalFields = notox::OptionalFields {
         options: notox::OptionsFields { dry_run: false },
         verbosity: notox::VerbosityFields {
@@ -13,7 +13,8 @@ mod tests {
 
     #[test]
     fn no_rename() {
-        let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &[PathBuf::from("my_file")]);
+        let paths = HashSet::from([PathBuf::from("my_file")]);
+        let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &paths);
         assert_eq!(res.len(), 1);
         assert_eq!(res[0].path, PathBuf::from("my_file"));
         assert_eq!(res[0].modified, None);
@@ -22,7 +23,8 @@ mod tests {
     #[test]
     fn rename() {
         let path = PathBuf::from("my?..file");
-        let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &[path.clone()]);
+        let paths = HashSet::from([path.clone()]);
+        let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &paths);
         assert_eq!(res.len(), 1);
         assert_eq!(res[0].path, path);
         assert_eq!(res[0].modified, Some(PathBuf::from("my_..file")));
@@ -70,7 +72,8 @@ mod tests {
             let path_to_test = PathBuf::from(one_test.0);
             let result_to_test = PathBuf::from(one_test.1);
             println!("Testing: {:?} -> {:?}", path_to_test, result_to_test);
-            let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &[path_to_test.clone()]);
+            let paths = HashSet::from([path_to_test.clone()]);
+            let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &paths);
             assert_eq!(res.len(), 1);
             assert_eq!(res[0].path, path_to_test);
             assert_eq!(res[0].modified, Some(result_to_test));
@@ -94,7 +97,10 @@ mod tests {
         for one_test in paths.iter() {
             let path_to_test = PathBuf::from(one_test);
             println!("Testing: {:?}", path_to_test);
-            let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &[path_to_test.clone()]);
+            let res = notox::notox(
+                &TESTS_FIELDS_NOT_DRY_RUN,
+                &HashSet::from([path_to_test.clone()]),
+            );
             assert_eq!(res.len(), 1);
             assert_eq!(res[0].path, path_to_test);
             assert_eq!(res[0].modified, None);
@@ -164,7 +170,8 @@ mod tests {
                 index,
                 current_char.escape_unicode()
             );
-            let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &[path_to_test.clone()]);
+            let paths = HashSet::from([path_to_test.clone()]);
+            let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &paths);
             assert_eq!(res.len(), 1);
             assert_eq!(res[0].path, path_to_test);
             assert_eq!(res[0].modified, correct_path);

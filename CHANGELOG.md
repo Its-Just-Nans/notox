@@ -32,6 +32,12 @@ cargo test -- --show-output
 cargo test <test_name>
 ```
 
+## 2025-04-10
+
+- Make in more rustic way
+- Use HashSet instead of Vec
+- Bump to version `1.1.0`
+
 ## 2024-12-29
 
 - Fix typos

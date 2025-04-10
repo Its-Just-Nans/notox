@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{collections::HashSet, path::PathBuf};
 
     #[test]
     fn test_print_output() {
@@ -61,7 +61,7 @@ mod tests {
             },
         ];
         for options in args.iter() {
-            let paths_to_check = [PathBuf::from("README.md")];
+            let paths_to_check = HashSet::from([PathBuf::from("README.md")]);
             let final_res = notox::notox(options, &paths_to_check);
             notox::print_output(&options.verbosity, final_res).unwrap();
         }
@@ -115,11 +115,11 @@ mod tests {
         let read_only = PathBuf::from("test_verbose_dry.txt");
         setup(&to_correct, &read_only);
 
-        let paths_to_check = [
+        let paths_to_check =  HashSet::from([
             PathBuf::from("README.md"),
             to_correct.clone(),
             read_only.clone(),
-        ];
+        ]);
         let final_res = notox::notox(&options, &paths_to_check);
         notox::print_output(&options.verbosity, final_res).unwrap();
 
@@ -142,11 +142,11 @@ mod tests {
         let read_only = PathBuf::from("test_verbose.txt");
         setup(&to_correct, &read_only);
 
-        let paths_to_check = [
+        let paths_to_check =  HashSet::from([
             PathBuf::from("README.md"),
             to_correct.clone(),
             read_only.clone(),
-        ];
+        ]);
         let final_res = notox::notox(&options, &paths_to_check);
         notox::print_output(&options.verbosity, final_res).unwrap();
 
@@ -169,11 +169,11 @@ mod tests {
         let read_only = PathBuf::from("test_json.txt");
         setup(&to_correct, &read_only);
 
-        let paths_to_check = [
+        let paths_to_check =  HashSet::from([
             PathBuf::from("README.md"),
             to_correct.clone(),
             read_only.clone(),
-        ];
+        ]);
         let final_res = notox::notox(&options, &paths_to_check);
         notox::print_output(&options.verbosity, final_res).unwrap();
 
@@ -196,11 +196,11 @@ mod tests {
         let read_only = PathBuf::from("test_json_error.txt");
         setup(&to_correct, &read_only);
 
-        let paths_to_check = [
+        let paths_to_check =  HashSet::from([
             PathBuf::from("README.md"),
             to_correct.clone(),
             read_only.clone(),
-        ];
+        ]);
         let final_res = notox::notox(&options, &paths_to_check);
         notox::print_output(&options.verbosity, final_res).unwrap();
 
@@ -223,11 +223,11 @@ mod tests {
         let read_only = PathBuf::from("test_json_error_dry.txt");
         setup(&to_correct, &read_only);
 
-        let paths_to_check = [
+        let paths_to_check =  HashSet::from([
             PathBuf::from("README.md"),
             to_correct.clone(),
             read_only.clone(),
-        ];
+        ]);
         let final_res = notox::notox(&options, &paths_to_check);
         notox::print_output(&options.verbosity, final_res).unwrap();
 

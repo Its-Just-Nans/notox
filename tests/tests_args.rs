@@ -189,7 +189,8 @@ mod tests {
             if let Ok(ok_res) = res {
                 assert_eq!(ok_res.0, one_test.1);
             } else {
-                assert_eq!(res.err().unwrap(), 1)
+                println!("Error parsing args: {:?} {:?}", res, one_test.0);
+                assert_eq!(res.err().unwrap(), 1);
             }
         }
     }
