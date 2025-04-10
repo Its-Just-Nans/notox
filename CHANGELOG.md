@@ -37,6 +37,7 @@ cargo test <test_name>
 - Make in more rustic way
 - Use HashSet instead of Vec
 - Bump to version `1.1.0`
+- Bump to version `1.1.1`
 
 ## 2024-12-29
 

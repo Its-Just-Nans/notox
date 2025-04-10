@@ -597,38 +597,33 @@ pub fn notox(
     full_options: &OptionalFields,
     paths_to_check: &HashSet<PathBuf>,
 ) -> Vec<CustomSingleResult> {
-    Notox::new(full_options, paths_to_check).run()
+    Notox::new(full_options.clone()).run(paths_to_check)
 }
 
 /// main function of the program: clean and print the output
 pub fn notox_full(full_options: &OptionalFields, paths_to_check: HashSet<PathBuf>) -> i32 {
-    Notox::new(full_options, &paths_to_check).run_and_print()
+    Notox::new(full_options.clone()).run_and_print(&paths_to_check)
 }
 
 /// Notox struct
 pub struct Notox {
     /// Options
     optional_fields: OptionalFields,
-    /// The paths to check
-    paths_to_check: HashSet<PathBuf>,
 }
 
 impl Notox {
     /// Create a new Notox instance
-    pub fn new(optional_fields: &OptionalFields, paths_to_check: &HashSet<PathBuf>) -> Notox {
-        Notox {
-            optional_fields: optional_fields.clone(),
-            paths_to_check: paths_to_check.clone(),
-        }
+    pub fn new(optional_fields: OptionalFields) -> Notox {
+        Notox { optional_fields }
     }
 
     /// Run the Notox instance
-    pub fn run(&self) -> Vec<CustomSingleResult> {
+    pub fn run(&self, paths_to_check: &HashSet<PathBuf>) -> Vec<CustomSingleResult> {
         if self.optional_fields.verbosity.verbose {
             println!("Running with options: {:?}", &self.optional_fields);
         }
         let mut final_res = Vec::new();
-        for one_path in &self.paths_to_check {
+        for one_path in paths_to_check {
             if self.optional_fields.verbosity.verbose {
                 println!("Checking: {:?}", one_path);
             }
@@ -643,8 +638,8 @@ impl Notox {
     }
 
     /// Run the Notox instance and print the output
-    pub fn run_and_print(self) -> i32 {
-        let final_res = self.run();
+    pub fn run_and_print(self, path_to_check: &HashSet<PathBuf>) -> i32 {
+        let final_res = self.run(path_to_check);
         match print_output(&self.optional_fields.verbosity, final_res) {
             Ok(_) => 0,
             Err(code) => code,
