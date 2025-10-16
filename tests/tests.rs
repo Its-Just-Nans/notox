@@ -16,14 +16,11 @@ mod tests {
             .count();
         assert_eq!(
             options,
-            notox::OptionalFields {
-                options: notox::OptionsFields { dry_run: true },
-                verbosity: notox::VerbosityFields {
-                    verbose: false,
-                    json: true,
-                    json_pretty: false,
-                    json_error: false,
-                },
+            notox::NotoxArgs {
+                dry_run: true,
+                verbose: false,
+                json_pretty: false,
+                json_output: Some(notox::JsonOutput::Default),
             }
         );
         assert_eq!(res_path.len(), number + 1);
@@ -37,7 +34,8 @@ mod tests {
 
     fn setup(dir: &String) {
         let directory_path = PathBuf::from(dir);
-        std::fs::remove_dir_all(&directory_path).unwrap_or(());
+
+        cleanup(dir);
         std::fs::create_dir(&directory_path).unwrap();
         std::fs::File::create(directory_path.join("test 1.txt")).unwrap();
         std::fs::File::create(directory_path.join("test_2.txt")).unwrap();
@@ -63,28 +61,47 @@ mod tests {
 
     fn cleanup(dir: &String) {
         let directory_path = PathBuf::from(&dir);
-        std::fs::remove_file(directory_path.join("test_1.txt")).unwrap();
-        std::fs::remove_file(directory_path.join("test_2.txt")).unwrap();
+        let text_1 = directory_path.join("test_1.txt");
+        if text_1.exists() {
+            std::fs::remove_file(text_1).unwrap();
+        }
+        let text_2 = directory_path.join("test_2.txt");
+        if text_2.exists() {
+            std::fs::remove_file(text_2).unwrap();
+        }
         let mut second_level = dir.clone();
         second_level.push_str("_second");
         let second_level = &directory_path.join(&second_level);
-        let mut perms = std::fs::metadata(second_level).unwrap().permissions();
-        perms.set_mode(0o777);
-        std::fs::set_permissions(second_level, perms).unwrap();
-        std::fs::remove_file(second_level.join("test 3.txt")).unwrap();
-        std::fs::remove_file(second_level.join("test_4.txt")).unwrap();
+        if second_level.exists() && second_level.is_dir() {
+            let mut perms = std::fs::metadata(second_level).unwrap().permissions();
+            perms.set_mode(0o777);
+            std::fs::set_permissions(second_level, perms).unwrap();
+        }
+        let text_3 = second_level.join("test 3.txt");
+        if text_3.exists() {
+            std::fs::remove_file(text_3).unwrap();
+        }
+        let text_4 = second_level.join("test_4.txt");
+        if text_4.exists() {
+            std::fs::remove_file(text_4).unwrap();
+        }
 
+        let text_5 = second_level.join("test_5.txt");
+        if text_5.exists() {
+            let mut perms = std::fs::metadata(&text_5).unwrap().permissions();
+            perms.set_mode(0o777);
+            std::fs::set_permissions(&text_5, perms).unwrap();
+            std::fs::remove_file(text_5).unwrap();
+        }
         // test 5
-        let mut perms = std::fs::metadata(second_level.join("test_5.txt"))
-            .unwrap()
-            .permissions();
-        perms.set_mode(0o777);
-        std::fs::set_permissions(second_level.join("test_5.txt"), perms).unwrap();
-        std::fs::remove_file(second_level.join("test_5.txt")).unwrap();
 
         // other
-        std::fs::remove_dir(second_level).unwrap();
-        std::fs::remove_dir_all(&directory_path).unwrap();
+        if second_level.exists() && second_level.is_dir() {
+            std::fs::remove_dir(second_level).unwrap();
+        }
+        if directory_path.exists() && directory_path.is_dir() {
+            std::fs::remove_dir(&directory_path).unwrap();
+        }
     }
 
     #[test]
@@ -104,14 +121,11 @@ mod tests {
 
         assert_eq!(
             options,
-            notox::OptionalFields {
-                options: notox::OptionsFields { dry_run: false },
-                verbosity: notox::VerbosityFields {
-                    verbose: false,
-                    json: true,
-                    json_pretty: false,
-                    json_error: false,
-                },
+            notox::NotoxArgs {
+                dry_run: false,
+                verbose: false,
+                json_pretty: false,
+                json_output: Some(notox::JsonOutput::Default),
             }
         );
         assert_eq!(res_path.len(), 5);
@@ -127,17 +141,13 @@ mod tests {
         let res = notox::parse_args(&vec_args);
         let (options, vect) = res.ok().unwrap();
         let res_path = notox::notox(&options, &vect);
-
         assert_eq!(
             options,
-            notox::OptionalFields {
-                options: notox::OptionsFields { dry_run: false },
-                verbosity: notox::VerbosityFields {
-                    verbose: true,
-                    json: false,
-                    json_pretty: false,
-                    json_error: false,
-                },
+            notox::NotoxArgs {
+                dry_run: false,
+                verbose: true,
+                json_pretty: false,
+                json_output: None,
             }
         );
         assert_eq!(res_path.len(), 5);

@@ -1,6 +1,7 @@
 //! notox is a tool to clean file names.
 //!
 //! ```shell
+//! # install notox
 //! cargo install notox
 //! # then use it
 //! notox .
@@ -8,6 +9,7 @@
 //!
 //! Coverage is available at [https://n4n5.dev/notox/coverage/](https://n4n5.dev/notox/coverage/)
 
+#![warn(clippy::all, rust_2018_idioms)]
 #![deny(
     missing_docs,
     clippy::all,
@@ -20,52 +22,34 @@
 use std::{
     collections::HashSet,
     ffi::{OsStr, OsString},
-    fs::DirEntry,
     path::{Path, PathBuf},
 };
 
-#[derive(Debug, Clone)]
-/// Contains information about verbosity options
-pub struct VerbosityFields {
-    /// if true, the program will print json
-    pub json: bool,
-    /// if true, the program will print json with pretty print
+/// Type of JSON output
+#[derive(Debug, Clone, PartialEq)]
+pub enum JsonOutput {
+    /// full json output
+    Default,
+    /// only errors in json output
+    OnlyError,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+/// Options for the program
+pub struct NotoxArgs {
+    /// if true, the program will not rename files
+    pub dry_run: bool,
+    /// which kind of json output to use
+    pub json_output: Option<JsonOutput>,
+    /// which kind of json output to use
     pub json_pretty: bool,
-    /// if true, the program will only print errors as json
-    pub json_error: bool,
     /// verbosity of the program
     pub verbose: bool,
 }
 
-#[derive(Debug, Clone)]
-/// contains information about cleaning options
-pub struct OptionsFields {
-    /// if true, the program will not rename files
-    pub dry_run: bool,
-}
-
-#[derive(Debug, Clone)]
-/// Options for the program
-pub struct OptionalFields {
-    /// if true, the program will not rename files
-    pub options: OptionsFields,
-    /// contains information about JsonFields
-    pub verbosity: VerbosityFields,
-}
-
-impl PartialEq<OptionalFields> for OptionalFields {
-    fn eq(&self, other: &OptionalFields) -> bool {
-        self.options.dry_run == other.options.dry_run
-            && self.verbosity.verbose == other.verbosity.verbose
-            && self.verbosity.json == other.verbosity.json
-            && self.verbosity.json_pretty == other.verbosity.json_pretty
-            && self.verbosity.json_error == other.verbosity.json_error
-    }
-}
-
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 /// Contains information about a result of a single file
-pub struct CustomSingleResult {
+pub struct PathChange {
     /// path of the file
     pub path: PathBuf,
     /// if the file has been renamed, contains the new path
@@ -74,7 +58,7 @@ pub struct CustomSingleResult {
     pub error: Option<String>,
 }
 
-#[inline]
+#[inline(always)]
 fn push_underscore_if(stri: &mut String, to_push: char, condition: bool) {
     if condition {
         stri.push(to_push);
@@ -82,7 +66,7 @@ fn push_underscore_if(stri: &mut String, to_push: char, condition: bool) {
 }
 
 /// Check if a vector of bytes is similar to a char
-#[inline]
+#[inline(always)]
 pub fn check_similar(curr_char: Option<char>, name_acc: &mut String, last_was_under: bool) -> bool {
     if let Some(one_char) = curr_char {
         match one_char {
@@ -253,7 +237,7 @@ pub fn check_similar(curr_char: Option<char>, name_acc: &mut String, last_was_un
 }
 
 /// Convert four bytes to a u32
-#[inline]
+#[inline(always)]
 pub fn convert_four_to_u32(
     first_byte: u8,
     second_byte: u8,
@@ -267,7 +251,7 @@ pub fn convert_four_to_u32(
 }
 
 /// Convert three bytes to a u32
-#[inline]
+#[inline(always)]
 pub fn convert_three_to_u32(first_byte: u8, second_byte: u8, third_byte: u8) -> u32 {
     ((first_byte as u32 & 0b0001_1111) << 12)
         | ((second_byte as u32 & 0b0011_1111) << 6)
@@ -275,13 +259,13 @@ pub fn convert_three_to_u32(first_byte: u8, second_byte: u8, third_byte: u8) -> 
 }
 
 /// Convert two bytes to a u32
-#[inline]
+#[inline(always)]
 pub fn convert_two_to_u32(first_byte: u8, second_byte: u8) -> u32 {
     ((first_byte as u32 & 0b0001_1111) << 6) | (second_byte as u32 & 0b0011_1111)
 }
 
 /// Clean a name
-fn clean_name(path: &OsStr, _options: &OptionsFields) -> OsString {
+fn clean_name(path: &OsStr, _options: &NotoxArgs) -> OsString {
     // for each byte of the path if it's not ascii, replace it with _
     let mut new_name = String::new();
     let mut vec_grapheme: [u8; 4] = [0; 4];
@@ -359,11 +343,11 @@ fn clean_name(path: &OsStr, _options: &OptionsFields) -> OsString {
 }
 
 /// Clean a path
-fn clean_path(file_path: &Path, options: &OptionsFields) -> CustomSingleResult {
+fn clean_path(file_path: &Path, options: &NotoxArgs) -> PathChange {
     let file_name = match file_path.file_name() {
         Some(name) => name,
         None => {
-            return CustomSingleResult {
+            return PathChange {
                 path: file_path.to_path_buf(),
                 modified: None,
                 error: None,
@@ -372,7 +356,7 @@ fn clean_path(file_path: &Path, options: &OptionsFields) -> CustomSingleResult {
     };
     let cleaned_name = clean_name(file_name, options);
     if cleaned_name == file_name {
-        return CustomSingleResult {
+        return PathChange {
             path: file_path.to_path_buf(),
             modified: None,
             error: None,
@@ -380,7 +364,7 @@ fn clean_path(file_path: &Path, options: &OptionsFields) -> CustomSingleResult {
     }
     let cleaned_path = file_path.with_file_name(cleaned_name);
     if options.dry_run {
-        return CustomSingleResult {
+        return PathChange {
             path: file_path.to_path_buf(),
             modified: Some(cleaned_path),
             error: Some("dry-run".to_string()),
@@ -390,25 +374,15 @@ fn clean_path(file_path: &Path, options: &OptionsFields) -> CustomSingleResult {
         Ok(_) => None,
         Err(rename_error) => Some(rename_error.to_string()),
     };
-    CustomSingleResult {
+    PathChange {
         path: file_path.to_path_buf(),
         modified: Some(cleaned_path.clone()),
         error: possible_error,
     }
 }
 
-/// Check if a DirEntry is a directory
-#[inline]
-fn is_directory_entry(entry: &DirEntry) -> bool {
-    if let Ok(metadata) = entry.metadata() {
-        metadata.is_dir()
-    } else {
-        false
-    }
-}
-
 /// Clean a directory
-fn clean_directory(dir_path: &Path, options: &OptionsFields) -> Vec<CustomSingleResult> {
+fn clean_directory(dir_path: &Path, options: &NotoxArgs) -> Vec<PathChange> {
     let mut dir_path = dir_path.to_path_buf();
     let mut result_vec = Vec::new();
     let res_dir = clean_path(&dir_path, options);
@@ -423,7 +397,11 @@ fn clean_directory(dir_path: &Path, options: &OptionsFields) -> Vec<CustomSingle
         for entry in entries {
             if let Ok(entry) = entry {
                 let file_path = entry.path();
-                if is_directory_entry(&entry) {
+                let is_entry_directory = match entry.file_type() {
+                    Ok(file_type) => file_type.is_dir(),
+                    Err(_) => false,
+                };
+                if is_entry_directory {
                     let e = clean_directory(&file_path, options);
                     result_vec.extend(e);
                 } else {
@@ -431,7 +409,7 @@ fn clean_directory(dir_path: &Path, options: &OptionsFields) -> Vec<CustomSingle
                     result_vec.push(e);
                 }
             } else {
-                result_vec.push(CustomSingleResult {
+                result_vec.push(PathChange {
                     path: dir_path.clone(),
                     modified: None,
                     error: Some("Entry error".to_string()),
@@ -439,7 +417,7 @@ fn clean_directory(dir_path: &Path, options: &OptionsFields) -> Vec<CustomSingle
             }
         }
     } else {
-        result_vec.push(CustomSingleResult {
+        result_vec.push(PathChange {
             path: dir_path,
             modified: None,
             error: Some("Error while reading directory".to_string()),
@@ -472,12 +450,11 @@ fn show_version() {
 /// Parse the arguments and return the options and the paths to check
 /// # Errors
 /// Return an error if the path is not found
-pub fn parse_args(args: &[String]) -> Result<(OptionalFields, HashSet<PathBuf>), i32> {
+pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32> {
     let mut dry_run = true;
     let mut verbose = true;
-    let mut json = false;
+    let mut json_output = None;
     let mut json_pretty = false;
-    let mut json_error = false;
     let mut path_to_check: HashSet<PathBuf> = HashSet::new();
     for one_arg in &args[1..] {
         if one_arg == "-d" || one_arg == "--do" {
@@ -498,15 +475,14 @@ pub fn parse_args(args: &[String]) -> Result<(OptionalFields, HashSet<PathBuf>),
             show_version();
             return Err(1);
         } else if one_arg == "-p" || one_arg == "--json-pretty" {
-            json = true;
+            json_output = Some(JsonOutput::Default);
             json_pretty = true;
             verbose = false;
         } else if one_arg == "-e" || one_arg == "--json-error" {
-            json = true;
-            json_error = true;
+            json_output = Some(JsonOutput::OnlyError);
             verbose = false;
         } else if one_arg == "-j" || one_arg == "--json" {
-            json = true;
+            json_output = Some(JsonOutput::Default);
             verbose = false;
         } else if one_arg == "-q" || one_arg == "--quiet" {
             verbose = false;
@@ -524,14 +500,11 @@ pub fn parse_args(args: &[String]) -> Result<(OptionalFields, HashSet<PathBuf>),
         path_to_check.extend(paths);
     }
     Ok((
-        OptionalFields {
-            options: OptionsFields { dry_run },
-            verbosity: VerbosityFields {
-                verbose,
-                json,
-                json_pretty,
-                json_error,
-            },
+        NotoxArgs {
+            dry_run,
+            verbose,
+            json_output,
+            json_pretty,
         },
         path_to_check,
     ))
@@ -540,10 +513,7 @@ pub fn parse_args(args: &[String]) -> Result<(OptionalFields, HashSet<PathBuf>),
 /// Print the output of the program conforming to the options
 /// # Errors
 /// Return an error if the output cannot be serialized
-pub fn print_output(
-    options: &VerbosityFields,
-    final_res: Vec<CustomSingleResult>,
-) -> Result<(), i32> {
+pub fn print_output(options: &NotoxArgs, final_res: Vec<PathChange>) -> Result<(), i32> {
     if options.verbose {
         let len = final_res.len();
         for one_res in final_res {
@@ -561,19 +531,20 @@ pub fn print_output(
         } else {
             println!("{} files checked", len);
         }
-    } else if options.json {
+    } else if let Some(json_output) = &options.json_output {
         #[cfg(feature = "serde")]
         {
-            let vec_to_json = if options.json_error {
-                let mut vec_to_json: Vec<CustomSingleResult> = Vec::new();
-                for one_res in final_res {
-                    if one_res.error.is_some() {
-                        vec_to_json.push(one_res);
+            let vec_to_json = match json_output {
+                JsonOutput::Default => final_res,
+                JsonOutput::OnlyError => {
+                    let mut vec_to_json: Vec<PathChange> = Vec::new();
+                    for one_res in final_res {
+                        if one_res.error.is_some() {
+                            vec_to_json.push(one_res);
+                        }
                     }
+                    vec_to_json
                 }
-                vec_to_json
-            } else {
-                final_res
             };
             let json_string = if options.json_pretty {
                 serde_json::to_string_pretty(&vec_to_json)
@@ -593,44 +564,43 @@ pub fn print_output(
 }
 
 /// Do the program, return the Vector of result
-pub fn notox(
-    full_options: &OptionalFields,
-    paths_to_check: &HashSet<PathBuf>,
-) -> Vec<CustomSingleResult> {
-    Notox::new(full_options.clone()).run(paths_to_check)
+pub fn notox(full_options: &NotoxArgs, paths_to_check: &HashSet<PathBuf>) -> Vec<PathChange> {
+    Notox::new(full_options).run(paths_to_check)
 }
 
 /// main function of the program: clean and print the output
-pub fn notox_full(full_options: &OptionalFields, paths_to_check: HashSet<PathBuf>) -> i32 {
-    Notox::new(full_options.clone()).run_and_print(&paths_to_check)
+pub fn notox_full(full_options: &NotoxArgs, paths_to_check: HashSet<PathBuf>) -> i32 {
+    Notox::new(full_options).run_and_print(&paths_to_check)
 }
 
 /// Notox struct
 pub struct Notox {
     /// Options
-    optional_fields: OptionalFields,
+    options: NotoxArgs,
 }
 
 impl Notox {
     /// Create a new Notox instance
-    pub fn new(optional_fields: OptionalFields) -> Notox {
-        Notox { optional_fields }
+    pub fn new(options: &NotoxArgs) -> Notox {
+        Notox {
+            options: options.clone(),
+        }
     }
 
     /// Run the Notox instance
-    pub fn run(&self, paths_to_check: &HashSet<PathBuf>) -> Vec<CustomSingleResult> {
-        if self.optional_fields.verbosity.verbose {
-            println!("Running with options: {:?}", &self.optional_fields);
+    pub fn run(&self, paths_to_check: &HashSet<PathBuf>) -> Vec<PathChange> {
+        if self.options.verbose {
+            println!("Running with options: {:?}", &self.options);
         }
         let mut final_res = Vec::new();
         for one_path in paths_to_check {
-            if self.optional_fields.verbosity.verbose {
+            if self.options.verbose {
                 println!("Checking: {:?}", one_path);
             }
             let one_res = if one_path.is_dir() {
-                clean_directory(one_path, &self.optional_fields.options)
+                clean_directory(one_path, &self.options)
             } else {
-                Vec::from([clean_path(one_path, &self.optional_fields.options)])
+                Vec::from([clean_path(one_path, &self.options)])
             };
             final_res.extend(one_res);
         }
@@ -640,7 +610,7 @@ impl Notox {
     /// Run the Notox instance and print the output
     pub fn run_and_print(self, path_to_check: &HashSet<PathBuf>) -> i32 {
         let final_res = self.run(path_to_check);
-        match print_output(&self.optional_fields.verbosity, final_res) {
+        match print_output(&self.options, final_res) {
             Ok(_) => 0,
             Err(code) => code,
         }

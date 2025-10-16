@@ -1,14 +1,11 @@
 #[cfg(test)]
 mod tests {
     use std::{collections::HashSet, path::PathBuf};
-    const TESTS_FIELDS_NOT_DRY_RUN: notox::OptionalFields = notox::OptionalFields {
-        options: notox::OptionsFields { dry_run: false },
-        verbosity: notox::VerbosityFields {
-            verbose: false,
-            json: false,
-            json_pretty: false,
-            json_error: false,
-        },
+    const TESTS_FIELDS_NOT_DRY_RUN: notox::NotoxArgs = notox::NotoxArgs {
+        dry_run: false,
+        verbose: false,
+        json_pretty: false,
+        json_output: Some(notox::JsonOutput::Default),
     };
 
     #[test]
