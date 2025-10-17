@@ -39,4 +39,59 @@ mod tests {
             .failure()
             .stdout(predicate::str::contains("notox"));
     }
+
+    #[test]
+    fn test_main_json() {
+        let mut cmd = Command::cargo_bin("notox").unwrap();
+
+        cmd.arg("README.md").arg("Cargo.toml").arg("-j");
+        cmd.assert().success();
+        let stdout = String::from_utf8(cmd.output().unwrap().stdout).unwrap();
+        let idx = stdout.find("README.md").unwrap();
+        println!("Index: {}", idx);
+        let (name1, name2) = if idx == 10 {
+            ("README.md", "Cargo.toml")
+        } else {
+            ("Cargo.toml", "README.md")
+        };
+        let result = format!(
+            r#"[{{"path":"{}","modified":null,"error":null}},{{"path":"{}","modified":null,"error":null}}]
+"#,
+            name1, name2
+        );
+        assert_eq!(stdout, result);
+    }
+
+    #[test]
+    fn test_main_json_pretty() {
+        let mut cmd = Command::cargo_bin("notox").unwrap();
+
+        cmd.arg("README.md").arg("Cargo.toml").arg("-p");
+        cmd.assert().success();
+        let stdout = String::from_utf8(cmd.output().unwrap().stdout).unwrap();
+        let idx = stdout.find("README.md").unwrap();
+        println!("Index: {}", idx);
+        let (name1, name2) = if idx == 19 {
+            ("README.md", "Cargo.toml")
+        } else {
+            ("Cargo.toml", "README.md")
+        };
+        let result = format!(
+            r#"[
+  {{
+    "path": "{}",
+    "modified": null,
+    "error": null
+  }},
+  {{
+    "path": "{}",
+    "modified": null,
+    "error": null
+  }}
+]
+"#,
+            name1, name2
+        );
+        assert_eq!(stdout, result);
+    }
 }

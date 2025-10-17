@@ -97,7 +97,7 @@ checksum = "61807f77802ff30975e01f4f071c8ba10c022052f98b3294119f3e615d13e5be"
 
 [[package]]
 name = "notox"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "assert_cmd",
  "predicates",

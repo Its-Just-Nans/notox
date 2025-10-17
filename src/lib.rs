@@ -39,25 +39,109 @@ pub enum JsonOutput {
 pub struct NotoxArgs {
     /// if true, the program will not rename files
     pub dry_run: bool,
+    #[cfg(feature = "serde")]
     /// which kind of json output to use
     pub json_output: Option<JsonOutput>,
+    #[cfg(feature = "serde")]
     /// which kind of json output to use
     pub json_pretty: bool,
     /// verbosity of the program
     pub verbose: bool,
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 /// Contains information about a result of a single file
-pub struct PathChange {
-    /// path of the file
-    pub path: PathBuf,
-    /// if the file has been renamed, contains the new path
-    pub modified: Option<PathBuf>,
-    /// if the file has not been renamed, contains the error
-    pub error: Option<String>,
+#[derive(Debug)]
+pub enum PathChange {
+    /// The path has not been changed
+    Unchanged {
+        /// The original path
+        path: PathBuf,
+    },
+    /// The path has been changed
+    Changed {
+        /// The original path
+        path: PathBuf,
+        /// The modified path
+        modified: PathBuf,
+    },
+    /// The path could not be changed
+    ErrorRename {
+        /// The original path
+        path: PathBuf,
+        /// The modified path
+        modified: PathBuf,
+        /// The error message
+        error: String,
+    },
+    /// There was an error while processing the path
+    Error {
+        /// The original path
+        path: PathBuf,
+        /// The error message
+        error: String,
+    },
 }
 
+#[cfg(feature = "serde")]
+struct PathSerializer<'a> {
+    /// The original path
+    path: &'a PathBuf,
+    /// The modified path
+    modified: Option<&'a PathBuf>,
+    /// The error message
+    error: Option<&'a String>,
+}
+
+#[cfg(feature = "serde")]
+impl<'a> From<&'a PathChange> for PathSerializer<'a> {
+    fn from(pc: &'a PathChange) -> Self {
+        match pc {
+            PathChange::Unchanged { path } => PathSerializer {
+                path,
+                modified: None,
+                error: None,
+            },
+            PathChange::Changed { path, modified } => PathSerializer {
+                path,
+                modified: Some(modified),
+                error: None,
+            },
+            PathChange::ErrorRename {
+                path,
+                modified,
+                error,
+            } => PathSerializer {
+                path,
+                modified: Some(modified),
+                error: Some(error),
+            },
+            PathChange::Error { path, error } => PathSerializer {
+                path,
+                modified: None,
+                error: Some(error),
+            },
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for PathChange {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        let path_serializer = PathSerializer::from(self);
+        let mut state = serializer.serialize_struct("PathChange", 3)?;
+        state.serialize_field("path", &path_serializer.path)?;
+        state.serialize_field("modified", &path_serializer.modified)?;
+        state.serialize_field("error", &path_serializer.error)?;
+        state.end()
+    }
+}
+
+/// Push a char to a string if a condition is true
 #[inline(always)]
 fn push_underscore_if(stri: &mut String, to_push: char, condition: bool) {
     if condition {
@@ -347,37 +431,35 @@ fn clean_path(file_path: &Path, options: &NotoxArgs) -> PathChange {
     let file_name = match file_path.file_name() {
         Some(name) => name,
         None => {
-            return PathChange {
+            return PathChange::Unchanged {
                 path: file_path.to_path_buf(),
-                modified: None,
-                error: None,
             };
         }
     };
     let cleaned_name = clean_name(file_name, options);
     if cleaned_name == file_name {
-        return PathChange {
+        return PathChange::Unchanged {
             path: file_path.to_path_buf(),
-            modified: None,
-            error: None,
         };
     }
     let cleaned_path = file_path.with_file_name(cleaned_name);
     if options.dry_run {
-        return PathChange {
+        return PathChange::ErrorRename {
             path: file_path.to_path_buf(),
-            modified: Some(cleaned_path),
-            error: Some("dry-run".to_string()),
+            modified: cleaned_path,
+            error: "dry-run".to_string(),
         };
     }
-    let possible_error = match std::fs::rename(file_path, &cleaned_path) {
-        Ok(_) => None,
-        Err(rename_error) => Some(rename_error.to_string()),
-    };
-    PathChange {
-        path: file_path.to_path_buf(),
-        modified: Some(cleaned_path.clone()),
-        error: possible_error,
+    match std::fs::rename(file_path, &cleaned_path) {
+        Ok(_) => PathChange::Changed {
+            path: file_path.to_path_buf(),
+            modified: cleaned_path,
+        },
+        Err(rename_error) => PathChange::ErrorRename {
+            path: file_path.to_path_buf(),
+            modified: cleaned_path,
+            error: rename_error.to_string(),
+        },
     }
 }
 
@@ -386,11 +468,8 @@ fn clean_directory(dir_path: &Path, options: &NotoxArgs) -> Vec<PathChange> {
     let mut dir_path = dir_path.to_path_buf();
     let mut result_vec = Vec::new();
     let res_dir = clean_path(&dir_path, options);
-    if !options.dry_run && res_dir.modified.is_some() && res_dir.error.is_none() {
-        // if the directory has been renamed, we need to update the path
-        if let Some(ref modified) = res_dir.modified {
-            dir_path = modified.clone();
-        }
+    if let PathChange::Changed { modified, .. } = &res_dir {
+        dir_path = modified.clone();
     }
     result_vec.push(res_dir);
     if let Ok(entries) = std::fs::read_dir(&dir_path) {
@@ -409,18 +488,16 @@ fn clean_directory(dir_path: &Path, options: &NotoxArgs) -> Vec<PathChange> {
                     result_vec.push(e);
                 }
             } else {
-                result_vec.push(PathChange {
+                result_vec.push(PathChange::Error {
                     path: dir_path.clone(),
-                    modified: None,
-                    error: Some("Entry error".to_string()),
+                    error: "Error reading dir entry of directory".to_string(),
                 });
             }
         }
     } else {
-        result_vec.push(PathChange {
+        result_vec.push(PathChange::Error {
             path: dir_path,
-            modified: None,
-            error: Some("Error while reading directory".to_string()),
+            error: "Error while reading directory".to_string(),
         });
     }
     result_vec
@@ -453,7 +530,9 @@ fn show_version() {
 pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32> {
     let mut dry_run = true;
     let mut verbose = true;
+    #[cfg(feature = "serde")]
     let mut json_output = None;
+    #[cfg(feature = "serde")]
     let mut json_pretty = false;
     let mut path_to_check: HashSet<PathBuf> = HashSet::new();
     for one_arg in &args[1..] {
@@ -475,18 +554,43 @@ pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32>
             show_version();
             return Err(1);
         } else if one_arg == "-p" || one_arg == "--json-pretty" {
-            json_output = Some(JsonOutput::Default);
-            json_pretty = true;
-            verbose = false;
+            #[cfg(feature = "serde")]
+            {
+                json_output = Some(JsonOutput::Default);
+                json_pretty = true;
+                verbose = false;
+            }
+            #[cfg(not(feature = "serde"))]
+            {
+                println!("JSON output is not available, please use a notox version with the 'serde' feature.");
+                return Err(2);
+            }
         } else if one_arg == "-e" || one_arg == "--json-error" {
-            json_output = Some(JsonOutput::OnlyError);
-            verbose = false;
+            #[cfg(feature = "serde")]
+            {
+                json_output = Some(JsonOutput::OnlyError);
+                verbose = false;
+            }
+            #[cfg(not(feature = "serde"))]
+            {
+                println!("JSON output is not available, please use a notox version with the 'serde' feature.");
+                return Err(2);
+            }
         } else if one_arg == "-j" || one_arg == "--json" {
-            json_output = Some(JsonOutput::Default);
-            verbose = false;
+            #[cfg(feature = "serde")]
+            {
+                json_output = Some(JsonOutput::Default);
+                verbose = false;
+            }
+            #[cfg(not(feature = "serde"))]
+            {
+                println!("JSON output is not available, please use a notox version with the 'serde' feature.");
+                return Err(2);
+            }
         } else if one_arg == "-q" || one_arg == "--quiet" {
             verbose = false;
         } else if one_arg == "*" {
+            // should not happen with most shells
             let paths = get_path_of_dir(".");
             path_to_check.extend(paths);
         } else if std::fs::metadata(one_arg).is_ok() {
@@ -503,7 +607,9 @@ pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32>
         NotoxArgs {
             dry_run,
             verbose,
+            #[cfg(feature = "serde")]
             json_output,
+            #[cfg(feature = "serde")]
             json_pretty,
         },
         path_to_check,
@@ -516,14 +622,22 @@ pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32>
 pub fn print_output(options: &NotoxArgs, final_res: Vec<PathChange>) -> Result<(), i32> {
     if options.verbose {
         let len = final_res.len();
-        for one_res in final_res {
-            match (one_res.modified, one_res.error) {
-                (Some(modified), Some(error)) => {
-                    println!("{:?} -> {:?} : {}", one_res.path, modified, error)
+        for one_change in final_res {
+            match one_change {
+                PathChange::Unchanged { .. } => {}
+                PathChange::Changed { path, modified } => {
+                    println!("{:?} -> {:?}", path, modified);
                 }
-                (Some(modified), None) => println!("{:?} -> {:?}", one_res.path, modified),
-                (None, Some(error)) => println!("{:?} : {}", one_res.path, error),
-                _ => {}
+                PathChange::Error { path, error } => {
+                    println!("{:?} : {}", path, error);
+                }
+                PathChange::ErrorRename {
+                    path,
+                    modified,
+                    error,
+                } => {
+                    println!("{:?} -> {:?} : {}", path, modified, error);
+                }
             }
         }
         if len == 1 {
@@ -531,31 +645,40 @@ pub fn print_output(options: &NotoxArgs, final_res: Vec<PathChange>) -> Result<(
         } else {
             println!("{} files checked", len);
         }
-    } else if let Some(json_output) = &options.json_output {
+    } else if cfg!(feature = "serde") {
         #[cfg(feature = "serde")]
         {
-            let vec_to_json = match json_output {
-                JsonOutput::Default => final_res,
-                JsonOutput::OnlyError => {
-                    let mut vec_to_json: Vec<PathChange> = Vec::new();
-                    for one_res in final_res {
-                        if one_res.error.is_some() {
-                            vec_to_json.push(one_res);
+            if let Some(json_output) = &options.json_output {
+                let vec_to_json = match json_output {
+                    JsonOutput::Default => final_res,
+                    JsonOutput::OnlyError => {
+                        let mut vec_to_json: Vec<PathChange> = Vec::new();
+                        for one_change in final_res {
+                            match one_change {
+                                PathChange::Unchanged { .. } => {}
+                                PathChange::Changed { .. } => {}
+                                one_res @ PathChange::Error { .. } => {
+                                    vec_to_json.push(one_res);
+                                }
+                                one_res @ PathChange::ErrorRename { .. } => {
+                                    vec_to_json.push(one_res);
+                                }
+                            }
                         }
+                        vec_to_json
                     }
-                    vec_to_json
-                }
-            };
-            let json_string = if options.json_pretty {
-                serde_json::to_string_pretty(&vec_to_json)
-            } else {
-                serde_json::to_string(&vec_to_json)
-            };
-            match json_string {
-                Ok(stringed) => println!("{}", stringed),
-                Err(_) => {
-                    println!(r#"{{"error": "Cannot serialize result"}}"#);
-                    return Err(2);
+                };
+                let json_string = if options.json_pretty {
+                    serde_json::to_string_pretty(&vec_to_json)
+                } else {
+                    serde_json::to_string(&vec_to_json)
+                };
+                match json_string {
+                    Ok(stringed) => println!("{}", stringed),
+                    Err(_) => {
+                        println!(r#"{{"error": "Cannot serialize result"}}"#);
+                        return Err(2);
+                    }
                 }
             }
         }

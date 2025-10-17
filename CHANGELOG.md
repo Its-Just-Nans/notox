@@ -32,6 +32,12 @@ cargo test -- --show-output
 cargo test <test_name>
 ```
 
+## 2025-10-16
+
+- Bump to version `1.2.1`
+- Change variable names
+- Change internal `PathChange`
+
 ## 2025-04-10
 
 - Make in more rustic way

@@ -1,6 +1,6 @@
 [package]
 name = "notox"
-version = "1.2.0"
+version = "1.2.1"
 authors = ["n4n5 <its.just.n4n5@gmail.com>"]
 categories = ["command-line-utilities"]
 edition = "2021"

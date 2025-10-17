@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests {
     use std::{collections::HashSet, path::PathBuf};
+
+    use notox::PathChange;
     const TESTS_FIELDS_NOT_DRY_RUN: notox::NotoxArgs = notox::NotoxArgs {
         dry_run: false,
         verbose: false,
@@ -13,18 +15,36 @@ mod tests {
         let paths = HashSet::from([PathBuf::from("my_file")]);
         let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &paths);
         assert_eq!(res.len(), 1);
-        assert_eq!(res[0].path, PathBuf::from("my_file"));
-        assert_eq!(res[0].modified, None);
+        let correct_path = PathBuf::from("my_file");
+        match &res[0] {
+            PathChange::Unchanged { path } => {
+                assert_eq!(path, &correct_path);
+            }
+            _ => panic!("Expected Unchanged"),
+        }
     }
 
     #[test]
     fn rename() {
-        let path = PathBuf::from("my?..file");
-        let paths = HashSet::from([path.clone()]);
+        let base_path = PathBuf::from("my?..file");
+        let paths = HashSet::from([base_path.clone()]);
         let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &paths);
         assert_eq!(res.len(), 1);
-        assert_eq!(res[0].path, path);
-        assert_eq!(res[0].modified, Some(PathBuf::from("my_..file")));
+        match &res[0] {
+            PathChange::ErrorRename {
+                path,
+                modified,
+                error,
+            } => {
+                assert_eq!(path, &base_path);
+                assert_eq!(modified, &PathBuf::from("my_..file"));
+                assert_eq!(error, "No such file or directory (os error 2)");
+            }
+            _ => {
+                println!("Result: {:?}", res[0]);
+                panic!("Expected Renamed")
+            }
+        }
     }
     #[test]
     fn rename_ascii() {
@@ -72,8 +92,21 @@ mod tests {
             let paths = HashSet::from([path_to_test.clone()]);
             let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &paths);
             assert_eq!(res.len(), 1);
-            assert_eq!(res[0].path, path_to_test);
-            assert_eq!(res[0].modified, Some(result_to_test));
+            match &res[0] {
+                PathChange::ErrorRename {
+                    path,
+                    modified,
+                    error,
+                } => {
+                    assert_eq!(path, &path_to_test);
+                    assert_eq!(modified, &result_to_test);
+                    assert_eq!(error, "No such file or directory (os error 2)")
+                }
+                _ => {
+                    println!("Result: {:?}", res[0]);
+                    panic!("Expected Changed");
+                }
+            }
         }
     }
 
@@ -99,8 +132,12 @@ mod tests {
                 &HashSet::from([path_to_test.clone()]),
             );
             assert_eq!(res.len(), 1);
-            assert_eq!(res[0].path, path_to_test);
-            assert_eq!(res[0].modified, None);
+            match &res[0] {
+                PathChange::Unchanged { path } => {
+                    assert_eq!(path, &path_to_test);
+                }
+                _ => panic!("Expected Unchanged"),
+            }
         }
     }
 
@@ -143,9 +180,9 @@ mod tests {
             let path_to_test = PathBuf::from(format!("my{}file.ext", current_char));
             let (boo, acc) = is_allowed_but_changed(current_char);
             if allow_no_change.contains(&index) {
-                correct_path = None;
+                correct_path = PathBuf::from("UNCHANGED");
             } else if diacritics.contains(&index) {
-                correct_path = Some(PathBuf::from("myfile.ext"));
+                correct_path = PathBuf::from("myfile.ext");
             } else if boo {
                 // here format
                 let corrected = format!("my{}file.ext", acc);
@@ -157,9 +194,9 @@ mod tests {
                     current_char.escape_unicode(),
                     corrected
                 );
-                correct_path = Some(corrected);
+                correct_path = corrected;
             } else {
-                correct_path = Some(PathBuf::from("my_file.ext"));
+                correct_path = PathBuf::from("my_file.ext");
             }
             println!(
                 "Testing: {:?} ({:?}) ({})",
@@ -170,8 +207,29 @@ mod tests {
             let paths = HashSet::from([path_to_test.clone()]);
             let res = notox::notox(&TESTS_FIELDS_NOT_DRY_RUN, &paths);
             assert_eq!(res.len(), 1);
-            assert_eq!(res[0].path, path_to_test);
-            assert_eq!(res[0].modified, correct_path);
+            match &res[0] {
+                PathChange::ErrorRename {
+                    path,
+                    modified,
+                    error,
+                } => {
+                    assert_eq!(path, &path_to_test);
+                    assert_eq!(modified, &correct_path);
+                    if index == 0 {
+                        assert_eq!(error, "file name contained an unexpected NUL byte");
+                    } else {
+                        assert_eq!(error, "No such file or directory (os error 2)");
+                    }
+                }
+                PathChange::Unchanged { path } => {
+                    assert_eq!(path, &path_to_test);
+                    assert_eq!(correct_path, PathBuf::from("UNCHANGED"));
+                }
+                _ => {
+                    println!("Result: {:?}", res[0]);
+                    panic!("Expected Changed or Unchanged")
+                }
+            }
         }
     }
 
