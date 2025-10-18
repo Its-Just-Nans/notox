@@ -4,7 +4,7 @@ mod tests {
 
     #[cfg(feature = "serde")]
     use notox::JsonOutput;
-    use notox::{NotoxArgs, Output};
+    use notox::{Notox, NotoxArgs, Output};
 
     #[test]
     fn test_print_output() {
@@ -76,8 +76,9 @@ mod tests {
         ];
         for options in args.iter() {
             let paths_to_check = HashSet::from([PathBuf::from("README.md")]);
-            let final_res = notox::notox(options, &paths_to_check);
-            notox::print_output(options, final_res).unwrap();
+            let notox_inst = Notox::new(options);
+            let final_res = notox_inst.run(&paths_to_check);
+            notox_inst.print_output(final_res).unwrap();
         }
     }
 
@@ -129,8 +130,9 @@ mod tests {
             to_correct.clone(),
             read_only.clone(),
         ]);
-        let final_res = notox::notox(&options, &paths_to_check);
-        notox::print_output(&options, final_res).unwrap();
+        let notox_inst = Notox::new(&options);
+        let final_res = notox_inst.run(&paths_to_check);
+        notox_inst.print_output(final_res).unwrap();
 
         // cleanup
         cleanup(&to_correct, &read_only);
@@ -151,8 +153,9 @@ mod tests {
             to_correct.clone(),
             read_only.clone(),
         ]);
-        let final_res = notox::notox(&options, &paths_to_check);
-        notox::print_output(&options, final_res).unwrap();
+        let notox_inst = Notox::new(&options);
+        let final_res = notox_inst.run(&paths_to_check);
+        notox_inst.print_output(final_res).unwrap();
 
         // cleanup
         cleanup(&PathBuf::from("tes_t_verbose.txt"), &read_only);
@@ -177,8 +180,9 @@ mod tests {
             to_correct.clone(),
             read_only.clone(),
         ]);
-        let final_res = notox::notox(&options, &paths_to_check);
-        notox::print_output(&options, final_res).unwrap();
+        let notox_inst = Notox::new(&options);
+        let final_res = notox_inst.run(&paths_to_check);
+        notox_inst.print_output(final_res).unwrap();
 
         // cleanup
         cleanup(&PathBuf::from("tes_t_json.txt"), &read_only);
@@ -203,8 +207,9 @@ mod tests {
             to_correct.clone(),
             read_only.clone(),
         ]);
-        let final_res = notox::notox(&options, &paths_to_check);
-        notox::print_output(&options, final_res).unwrap();
+        let notox_inst = Notox::new(&options);
+        let final_res = notox_inst.run(&paths_to_check);
+        notox_inst.print_output(final_res).unwrap();
 
         // cleanup
         cleanup(&PathBuf::from("tes_t_json_error.txt"), &read_only)
@@ -229,8 +234,9 @@ mod tests {
             to_correct.clone(),
             read_only.clone(),
         ]);
-        let final_res = notox::notox(&options, &paths_to_check);
-        notox::print_output(&options, final_res).unwrap();
+        let notox_inst = Notox::new(&options);
+        let final_res = notox_inst.run(&paths_to_check);
+        notox_inst.print_output(final_res).unwrap();
 
         // cleanup
         cleanup(&to_correct, &read_only)

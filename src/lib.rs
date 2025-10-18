@@ -28,7 +28,7 @@
 //!     // },
 //!     output: Output::Quiet
 //! };
-//! // as rust struct
+//! // as rust struct (recommended)
 //! let res = Notox::new(&notox_args).run(&paths);
 //! // as function
 //! let res = notox(&notox_args, &paths);
@@ -752,79 +752,8 @@ pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32>
     Ok((NotoxArgs { dry_run, output }, path_to_check))
 }
 
-/// Print the output of the program conforming to the options
-/// # Errors
-/// Return an error if the output cannot be serialized
-pub fn print_output(options: &NotoxArgs, final_res: Vec<PathChange>) -> Result<(), i32> {
-    match &options.output {
-        Output::Default => {
-            let len = final_res.len();
-            for one_change in final_res {
-                match one_change {
-                    PathChange::Unchanged { .. } => {}
-                    PathChange::Changed { path, modified } => {
-                        println!("{} -> {}", path.display(), modified.display());
-                    }
-                    PathChange::Error { path, error } => {
-                        println!("{} : {}", path.display(), error);
-                    }
-                    PathChange::ErrorRename {
-                        path,
-                        modified,
-                        error,
-                    } => {
-                        println!("{} -> {} : {}", path.display(), modified.display(), error);
-                    }
-                }
-            }
-            if len == 1 {
-                println!("{} file checked", len);
-            } else {
-                println!("{} files checked", len);
-            }
-        }
-        #[cfg(feature = "serde")]
-        Output::JsonOutput {
-            json: json_output,
-            pretty: json_pretty,
-        } => {
-            let vec_to_json = match json_output {
-                JsonOutput::JsonDefault => final_res,
-                JsonOutput::JsonOnlyError => {
-                    let mut vec_to_json: Vec<PathChange> = Vec::new();
-                    for one_change in final_res {
-                        match one_change {
-                            PathChange::Unchanged { .. } => {}
-                            PathChange::Changed { .. } => {}
-                            one_res @ PathChange::Error { .. } => {
-                                vec_to_json.push(one_res);
-                            }
-                            one_res @ PathChange::ErrorRename { .. } => {
-                                vec_to_json.push(one_res);
-                            }
-                        }
-                    }
-                    vec_to_json
-                }
-            };
-            let json_string = match json_pretty {
-                true => serde_json::to_string_pretty(&vec_to_json),
-                false => serde_json::to_string(&vec_to_json),
-            };
-            match json_string {
-                Ok(stringed) => println!("{}", stringed),
-                Err(_) => {
-                    println!(r#"{{"error": "Cannot serialize result"}}"#);
-                    return Err(2);
-                }
-            }
-        }
-        Output::Quiet => {}
-    }
-    Ok(())
-}
-
 /// Do the program, return the Vector of result
+/// The recommended usage is with the rust struct `Notox::new`
 pub fn notox(notox_args: &NotoxArgs, paths_to_check: &HashSet<PathBuf>) -> Vec<PathChange> {
     Notox::new(notox_args).run(paths_to_check)
 }
@@ -848,7 +777,7 @@ impl Notox {
     /// Returns error if parse_args fails
     pub fn run_from_args(args: &[String]) -> Result<Vec<PathChange>, i32> {
         match parse_args(args) {
-            Ok((notox_args, paths)) => Ok(Notox::new(&notox_args).run(&paths)),
+            Ok((notox_args, paths)) => Ok(Self::new(&notox_args).run(&paths)),
             Err(code) => Err(code),
         }
     }
@@ -856,7 +785,14 @@ impl Notox {
     /// Run main from args
     pub fn run_main_from_args(args: &[String]) -> i32 {
         match parse_args(args) {
-            Ok((notox_args, paths)) => Notox::new(&notox_args).run_and_print(&paths),
+            Ok((notox_args, paths)) => {
+                let notox_inst = Self::new(&notox_args);
+                let final_res = notox_inst.run(&paths);
+                match notox_inst.print_output(final_res) {
+                    Ok(_) => 0,
+                    Err(code) => code,
+                }
+            }
             Err(code) => code,
         }
     }
@@ -888,12 +824,75 @@ impl Notox {
         results.collect::<Vec<PathChange>>()
     }
 
-    /// Run the Notox instance and print the output
-    pub fn run_and_print(self, path_to_check: &HashSet<PathBuf>) -> i32 {
-        let final_res = self.run(path_to_check);
-        match print_output(&self.notox_args, final_res) {
-            Ok(_) => 0,
-            Err(code) => code,
+    /// Print the output of the program conforming to the options
+    /// # Errors
+    /// Return an error if the output cannot be serialized
+    pub fn print_output(&self, final_res: Vec<PathChange>) -> Result<(), i32> {
+        match &self.notox_args.output {
+            Output::Default => {
+                let len = final_res.len();
+                for one_change in final_res {
+                    match one_change {
+                        PathChange::Unchanged { .. } => {}
+                        PathChange::Changed { path, modified } => {
+                            println!("{} -> {}", path.display(), modified.display());
+                        }
+                        PathChange::Error { path, error } => {
+                            println!("{} : {}", path.display(), error);
+                        }
+                        PathChange::ErrorRename {
+                            path,
+                            modified,
+                            error,
+                        } => {
+                            println!("{} -> {} : {}", path.display(), modified.display(), error);
+                        }
+                    }
+                }
+                if len == 1 {
+                    println!("{} file checked", len);
+                } else {
+                    println!("{} files checked", len);
+                }
+            }
+            #[cfg(feature = "serde")]
+            Output::JsonOutput {
+                json: json_output,
+                pretty: json_pretty,
+            } => {
+                let vec_to_json = match json_output {
+                    JsonOutput::JsonDefault => final_res,
+                    JsonOutput::JsonOnlyError => {
+                        let mut vec_to_json: Vec<PathChange> = Vec::new();
+                        for one_change in final_res {
+                            match one_change {
+                                PathChange::Unchanged { .. } => {}
+                                PathChange::Changed { .. } => {}
+                                one_res @ PathChange::Error { .. } => {
+                                    vec_to_json.push(one_res);
+                                }
+                                one_res @ PathChange::ErrorRename { .. } => {
+                                    vec_to_json.push(one_res);
+                                }
+                            }
+                        }
+                        vec_to_json
+                    }
+                };
+                let json_string = match json_pretty {
+                    true => serde_json::to_string_pretty(&vec_to_json),
+                    false => serde_json::to_string(&vec_to_json),
+                };
+                match json_string {
+                    Ok(stringed) => println!("{}", stringed),
+                    Err(_) => {
+                        println!(r#"{{"error": "Cannot serialize result"}}"#);
+                        return Err(2);
+                    }
+                }
+            }
+            Output::Quiet => {}
         }
+        Ok(())
     }
 }
