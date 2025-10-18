@@ -418,7 +418,7 @@ pub fn check_similar(curr_char: Option<char>, name_acc: &mut String, last_was_un
 
 /// Convert four bytes to a u32
 #[inline(always)]
-pub fn convert_four_to_u32(
+pub(crate) fn convert_four_to_u32(
     first_byte: u8,
     second_byte: u8,
     third_byte: u8,
@@ -432,7 +432,7 @@ pub fn convert_four_to_u32(
 
 /// Convert three bytes to a u32
 #[inline(always)]
-pub fn convert_three_to_u32(first_byte: u8, second_byte: u8, third_byte: u8) -> u32 {
+pub(crate) fn convert_three_to_u32(first_byte: u8, second_byte: u8, third_byte: u8) -> u32 {
     ((first_byte as u32 & 0b0001_1111) << 12)
         | ((second_byte as u32 & 0b0011_1111) << 6)
         | (third_byte as u32 & 0b0011_1111)
@@ -440,7 +440,7 @@ pub fn convert_three_to_u32(first_byte: u8, second_byte: u8, third_byte: u8) -> 
 
 /// Convert two bytes to a u32
 #[inline(always)]
-pub fn convert_two_to_u32(first_byte: u8, second_byte: u8) -> u32 {
+pub(crate) fn convert_two_to_u32(first_byte: u8, second_byte: u8) -> u32 {
     ((first_byte as u32 & 0b0001_1111) << 6) | (second_byte as u32 & 0b0011_1111)
 }
 
