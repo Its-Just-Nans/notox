@@ -1,4 +1,4 @@
-# notox [![crates.io version](https://img.shields.io/crates/v/notox)](https://crates.io/crates/notox) ![crates.io downloads](https://img.shields.io/crates/d/notox) [![docs.rs](https://img.shields.io/docsrs/notox)](https://crates.io/crates/notox)
+# notox [![crates.io version](https://img.shields.io/crates/v/notox)](https://crates.io/crates/notox) ![crates.io downloads](https://img.shields.io/crates/d/notox) [![docs.rs](https://img.shields.io/docsrs/notox)](https://docs.rs/notox)
 
 no toxic names anymore. May looks like [detox](https://github.com/dharple/detox).
 
