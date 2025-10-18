@@ -68,16 +68,6 @@ pub enum JsonOutput {
     JsonOnlyError,
 }
 
-#[cfg(feature = "serde")]
-impl fmt::Display for JsonOutput {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            JsonOutput::JsonDefault => write!(f, "json-default"),
-            JsonOutput::JsonOnlyError => write!(f, "json-only-error"),
-        }
-    }
-}
-
 /// Type of output
 #[derive(Debug, Clone, PartialEq)]
 pub enum Output {
