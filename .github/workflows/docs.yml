@@ -31,7 +31,7 @@ jobs:
               run: cargo build --verbose
             - name: Build website
               run: .github/workflows/build.sh
-            - name: Upload coverage artifact
+            - name: Upload artifact
               uses: actions/upload-pages-artifact@v3
               with:
                   path: "dist"

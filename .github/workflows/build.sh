@@ -5,7 +5,8 @@ cargo +stable install cargo-llvm-cov --locked
 cargo llvm-cov --html
 
 # generate documentation
-mkdir -p dist
+rm -rf dist/
+mkdir -p dist/
 cargo doc --no-deps --all-features
 mv target/doc/* dist/
 rm -rf dist/.lock
