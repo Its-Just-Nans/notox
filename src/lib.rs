@@ -25,6 +25,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg(feature = "rayon")]
+use rayon::{iter::Either, prelude::*};
+
 /// Type of JSON output
 #[derive(Debug, Clone, PartialEq)]
 pub enum JsonOutput {
@@ -355,8 +358,8 @@ fn clean_name(path: &OsStr, _options: &NotoxArgs) -> OsString {
     let mut vec_grapheme: [u8; 4] = [0; 4];
     let mut last_was_underscore = false;
     let mut idx_grapheme = 0;
-    for byte in path.as_encoded_bytes().iter().copied() {
-        if idx_grapheme == 0 && byte < 128 {
+    for byte in path.as_encoded_bytes().iter() {
+        if idx_grapheme == 0 && *byte < 128 {
             match byte {
                 0..=44 => {
                     push_underscore_if(&mut new_name, '_', !last_was_underscore);
@@ -383,13 +386,13 @@ fn clean_name(path: &OsStr, _options: &NotoxArgs) -> OsString {
                     last_was_underscore = true;
                 }
                 _ => {
-                    new_name.push(byte as char);
+                    new_name.push(*byte as char);
                     last_was_underscore = false;
                 }
             }
             idx_grapheme = 0;
         } else {
-            vec_grapheme[idx_grapheme] = byte;
+            vec_grapheme[idx_grapheme] = *byte;
             idx_grapheme += 1;
             let first_byte = vec_grapheme[0];
             if first_byte >= 240 && idx_grapheme == 4 {
@@ -473,27 +476,61 @@ fn clean_directory(dir_path: &Path, options: &NotoxArgs) -> Vec<PathChange> {
     }
     result_vec.push(res_dir);
     if let Ok(entries) = std::fs::read_dir(&dir_path) {
-        for entry in entries {
-            if let Ok(entry) = entry {
+        let ok_entries = {
+            #[cfg(feature = "rayon")]
+            {
+                use std::fs::DirEntry;
+                let (ok_entries, error_entries): (Vec<_>, Vec<_>) = entries
+                    .collect::<Vec<Result<DirEntry, std::io::Error>>>()
+                    .into_par_iter()
+                    .partition_map(|x| match x {
+                        Ok(entry) => Either::Left(entry),
+                        Err(e) => Either::Right(e),
+                    });
+                error_entries.into_iter().for_each(|e| {
+                    result_vec.push(PathChange::Error {
+                        path: dir_path.clone(),
+                        error: format!("Error reading dir entry of directory {}", e),
+                    })
+                });
+                ok_entries
+            }
+            #[cfg(not(feature = "rayon"))]
+            {
+                let mut ok_entries = Vec::new();
+                for entry in entries {
+                    match entry {
+                        Ok(e) => ok_entries.push(e),
+                        Err(e) => result_vec.push(PathChange::Error {
+                            path: dir_path.clone(),
+                            error: format!("Error reading dir entry of directory {}", e),
+                        }),
+                    }
+                }
+                ok_entries
+            }
+        };
+        #[cfg(feature = "rayon")]
+        let iter = ok_entries.par_iter();
+        #[cfg(not(feature = "rayon"))]
+        let iter = ok_entries.iter();
+        let mapped = iter
+            .map(|entry| {
                 let file_path = entry.path();
                 let is_entry_directory = match entry.file_type() {
                     Ok(file_type) => file_type.is_dir(),
                     Err(_) => false,
                 };
                 if is_entry_directory {
-                    let e = clean_directory(&file_path, options);
-                    result_vec.extend(e);
+                    clean_directory(&file_path, options)
                 } else {
-                    let e = clean_path(&file_path, options);
-                    result_vec.push(e);
+                    let res = clean_path(&file_path, options);
+                    vec![res]
                 }
-            } else {
-                result_vec.push(PathChange::Error {
-                    path: dir_path.clone(),
-                    error: "Error reading dir entry of directory".to_string(),
-                });
-            }
-        }
+            })
+            .flatten()
+            .collect::<Vec<PathChange>>();
+        result_vec.extend(mapped);
     } else {
         result_vec.push(PathChange::Error {
             path: dir_path,
