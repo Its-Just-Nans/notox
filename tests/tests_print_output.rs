@@ -2,44 +2,76 @@
 mod tests {
     use std::{collections::HashSet, path::PathBuf};
 
+    #[cfg(feature = "serde")]
+    use notox::JsonOutput;
+    use notox::{NotoxArgs, Output};
+
     #[test]
     fn test_print_output() {
         let args = [
-            notox::NotoxArgs {
+            NotoxArgs {
+                dry_run: true,
+                output: Output::Default,
+            },
+            NotoxArgs {
                 dry_run: false,
-                verbose: true,
-                json_pretty: false,
-                json_output: Some(notox::JsonOutput::Default),
+                output: Output::Default,
             },
-            notox::NotoxArgs {
+            NotoxArgs {
                 dry_run: true,
-                verbose: true,
-                json_pretty: false,
-                json_output: Some(notox::JsonOutput::Default),
+                output: Output::Quiet,
             },
-            notox::NotoxArgs {
-                dry_run: true,
-                verbose: false,
-                json_pretty: false,
-                json_output: Some(notox::JsonOutput::Default),
+            NotoxArgs {
+                dry_run: false,
+                output: Output::Quiet,
             },
-            notox::NotoxArgs {
+            #[cfg(feature = "serde")]
+            NotoxArgs {
                 dry_run: true,
-                verbose: false,
-                json_pretty: false,
-                json_output: Some(notox::JsonOutput::OnlyError),
+                output: Output::JsonOutput {
+                    json: JsonOutput::JsonDefault,
+                    pretty: false,
+                },
             },
-            notox::NotoxArgs {
-                dry_run: true,
-                verbose: false,
-                json_pretty: true,
-                json_output: Some(notox::JsonOutput::Default),
+            #[cfg(feature = "serde")]
+            NotoxArgs {
+                dry_run: false,
+                output: Output::JsonOutput {
+                    json: JsonOutput::JsonDefault,
+                    pretty: false,
+                },
             },
-            notox::NotoxArgs {
+            #[cfg(feature = "serde")]
+            NotoxArgs {
+                dry_run: false,
+                output: Output::JsonOutput {
+                    json: JsonOutput::JsonDefault,
+                    pretty: true,
+                },
+            },
+            #[cfg(feature = "serde")]
+            NotoxArgs {
                 dry_run: true,
-                verbose: false,
-                json_pretty: false,
-                json_output: Some(notox::JsonOutput::Default),
+                output: Output::JsonOutput {
+                    json: JsonOutput::JsonOnlyError,
+                    pretty: false,
+                },
+            },
+            #[cfg(feature = "serde")]
+            NotoxArgs {
+                dry_run: false,
+                output: Output::JsonOutput {
+                    json: JsonOutput::JsonOnlyError,
+                    pretty: false,
+                },
+            },
+            #[cfg(feature = "serde")]
+            NotoxArgs {
+                dry_run: false,
+                output: Output::JsonOutput {
+                    json: JsonOutput::JsonOnlyError,
+                    pretty: true,
+                },
             },
         ];
         for options in args.iter() {
@@ -84,11 +116,9 @@ mod tests {
 
     #[test]
     fn test_print_output_verbose_dry() {
-        let options = notox::NotoxArgs {
+        let options = NotoxArgs {
             dry_run: true,
-            verbose: true,
-            json_pretty: false,
-            json_output: Some(notox::JsonOutput::Default),
+            output: Output::Default,
         };
         let to_correct = PathBuf::from("tes t verbose dry.txt");
         let read_only = PathBuf::from("test_verbose_dry.txt");
@@ -108,11 +138,9 @@ mod tests {
 
     #[test]
     fn test_print_output_verbose_real() {
-        let options = notox::NotoxArgs {
+        let options = NotoxArgs {
             dry_run: false,
-            verbose: true,
-            json_pretty: false,
-            json_output: Some(notox::JsonOutput::Default),
+            output: Output::Default,
         };
         let to_correct = PathBuf::from("tes t verbose.txt");
         let read_only = PathBuf::from("test_verbose.txt");
@@ -131,12 +159,14 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "serde")]
     fn test_print_output_json_real() {
-        let options = notox::NotoxArgs {
+        let options = NotoxArgs {
             dry_run: false,
-            verbose: false,
-            json_pretty: false,
-            json_output: Some(notox::JsonOutput::Default),
+            output: Output::JsonOutput {
+                json: JsonOutput::JsonDefault,
+                pretty: false,
+            },
         };
         let to_correct = PathBuf::from("tes t json.txt");
         let read_only = PathBuf::from("test_json.txt");
@@ -155,12 +185,14 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "serde")]
     fn test_print_output_json_error_real() {
-        let options = notox::NotoxArgs {
+        let options = NotoxArgs {
             dry_run: false,
-            verbose: false,
-            json_pretty: false,
-            json_output: Some(notox::JsonOutput::OnlyError),
+            output: Output::JsonOutput {
+                json: JsonOutput::JsonOnlyError,
+                pretty: false,
+            },
         };
         let to_correct = PathBuf::from("tes t json error.txt");
         let read_only = PathBuf::from("test_json_error.txt");
@@ -179,12 +211,14 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "serde")]
     fn test_print_output_json_error_dry() {
-        let options = notox::NotoxArgs {
+        let options = NotoxArgs {
             dry_run: true,
-            json_pretty: false,
-            json_output: Some(notox::JsonOutput::OnlyError),
-            verbose: false,
+            output: Output::JsonOutput {
+                json: JsonOutput::JsonOnlyError,
+                pretty: false,
+            },
         };
         let to_correct = PathBuf::from("tes t json error dry.txt");
         let read_only = PathBuf::from("test_json_error_dry.txt");

@@ -1,16 +1,17 @@
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "serde")]
+    use notox::JsonOutput;
+    use notox::{NotoxArgs, Output};
 
     #[test]
     fn test_parse_args() {
         let args = vec![
             (
                 vec!["notox".to_string(), "README.md".to_string()],
-                notox::NotoxArgs {
+                NotoxArgs {
                     dry_run: true,
-                    json_pretty: false,
-                    verbose: true,
-                    json_output: None,
+                    output: Output::Default,
                 },
             ),
             (
@@ -19,13 +20,12 @@ mod tests {
                     "README.md".to_string(),
                     "-d".to_string(),
                 ],
-                notox::NotoxArgs {
+                NotoxArgs {
                     dry_run: false,
-                    verbose: true,
-                    json_pretty: false,
-                    json_output: None,
+                    output: Output::Default,
                 },
             ),
+            #[cfg(feature = "serde")]
             (
                 vec![
                     "notox".to_string(),
@@ -33,13 +33,15 @@ mod tests {
                     "-d".to_string(),
                     "-j".to_string(),
                 ],
-                notox::NotoxArgs {
+                NotoxArgs {
                     dry_run: false,
-                    verbose: false,
-                    json_pretty: false,
-                    json_output: Some(notox::JsonOutput::Default),
+                    output: Output::JsonOutput {
+                        json: JsonOutput::JsonDefault,
+                        pretty: false,
+                    },
                 },
             ),
+            #[cfg(feature = "serde")]
             (
                 vec![
                     "notox".to_string(),
@@ -47,13 +49,15 @@ mod tests {
                     "-d".to_string(),
                     "--json".to_string(),
                 ],
-                notox::NotoxArgs {
+                NotoxArgs {
                     dry_run: false,
-                    verbose: false,
-                    json_pretty: false,
-                    json_output: Some(notox::JsonOutput::Default),
+                    output: Output::JsonOutput {
+                        json: JsonOutput::JsonDefault,
+                        pretty: false,
+                    },
                 },
             ),
+            #[cfg(feature = "serde")]
             (
                 vec![
                     "notox".to_string(),
@@ -61,13 +65,15 @@ mod tests {
                     "-d".to_string(),
                     "-e".to_string(),
                 ],
-                notox::NotoxArgs {
+                NotoxArgs {
                     dry_run: false,
-                    verbose: false,
-                    json_pretty: false,
-                    json_output: Some(notox::JsonOutput::OnlyError),
+                    output: Output::JsonOutput {
+                        json: JsonOutput::JsonOnlyError,
+                        pretty: false,
+                    },
                 },
             ),
+            #[cfg(feature = "serde")]
             (
                 vec![
                     "notox".to_string(),
@@ -75,13 +81,15 @@ mod tests {
                     "-d".to_string(),
                     "--json-error".to_string(),
                 ],
-                notox::NotoxArgs {
+                NotoxArgs {
                     dry_run: false,
-                    verbose: false,
-                    json_pretty: false,
-                    json_output: Some(notox::JsonOutput::OnlyError),
+                    output: Output::JsonOutput {
+                        json: JsonOutput::JsonOnlyError,
+                        pretty: false,
+                    },
                 },
             ),
+            #[cfg(feature = "serde")]
             (
                 vec![
                     "notox".to_string(),
@@ -89,13 +97,15 @@ mod tests {
                     "-d".to_string(),
                     "-p".to_string(),
                 ],
-                notox::NotoxArgs {
+                NotoxArgs {
                     dry_run: false,
-                    verbose: false,
-                    json_pretty: true,
-                    json_output: Some(notox::JsonOutput::Default),
+                    output: Output::JsonOutput {
+                        json: JsonOutput::JsonDefault,
+                        pretty: true,
+                    },
                 },
             ),
+            #[cfg(feature = "serde")]
             (
                 vec![
                     "notox".to_string(),
@@ -103,47 +113,40 @@ mod tests {
                     "-d".to_string(),
                     "--json-pretty".to_string(),
                 ],
-                notox::NotoxArgs {
+                NotoxArgs {
                     dry_run: false,
-                    verbose: false,
-                    json_pretty: true,
-                    json_output: Some(notox::JsonOutput::Default),
+                    output: Output::JsonOutput {
+                        json: JsonOutput::JsonDefault,
+                        pretty: true,
+                    },
                 },
             ),
             (
                 vec!["notox".to_string(), "-v".to_string()],
-                notox::NotoxArgs {
+                NotoxArgs {
                     dry_run: true,
-                    verbose: false,
-                    json_pretty: true,
-                    json_output: None,
+                    output: Output::Default,
                 },
             ),
             (
                 vec!["notox".to_string(), "--version".to_string()],
-                notox::NotoxArgs {
+                NotoxArgs {
                     dry_run: true,
-                    verbose: false,
-                    json_pretty: true,
-                    json_output: None,
+                    output: Output::Default,
                 },
             ),
             (
                 vec!["notox".to_string(), "-q".to_string()],
-                notox::NotoxArgs {
+                NotoxArgs {
                     dry_run: true,
-                    verbose: false,
-                    json_pretty: false,
-                    json_output: None,
+                    output: Output::Quiet,
                 },
             ),
             (
                 vec!["notox".to_string(), "--quiet".to_string()],
-                notox::NotoxArgs {
+                NotoxArgs {
                     dry_run: true,
-                    verbose: false,
-                    json_pretty: false,
-                    json_output: None,
+                    output: Output::Quiet,
                 },
             ),
         ];
@@ -170,11 +173,9 @@ mod tests {
         let (options, vect) = res.ok().unwrap();
         assert_eq!(
             options,
-            notox::NotoxArgs {
+            NotoxArgs {
                 dry_run: true,
-                verbose: true,
-                json_pretty: false,
-                json_output: None,
+                output: Output::Default,
             }
         );
         assert_eq!(vect.len(), 1);
@@ -187,11 +188,9 @@ mod tests {
         let (options, vect) = res.ok().unwrap();
         assert_eq!(
             options,
-            notox::NotoxArgs {
+            NotoxArgs {
                 dry_run: true,
-                verbose: true,
-                json_pretty: false,
-                json_output: None,
+                output: Output::Default,
             }
         );
         let number = std::fs::read_dir(".")

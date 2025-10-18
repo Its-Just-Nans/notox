@@ -2,10 +2,14 @@
 mod tests {
     use std::{os::unix::fs::PermissionsExt, path::PathBuf};
 
+    #[cfg(feature = "serde")]
+    use notox::JsonOutput;
+    use notox::Output;
+
     #[test]
     fn test_parse_args_clean_directory() {
         let dir = "src".to_string();
-        let vec_args = ["notox".to_string(), dir.clone(), "-j".to_string()];
+        let vec_args = ["notox".to_string(), dir.clone()];
         let res = notox::parse_args(&vec_args);
         let (options, vect) = res.ok().unwrap();
         let res_path = notox::notox(&options, &vect);
@@ -18,9 +22,7 @@ mod tests {
             options,
             notox::NotoxArgs {
                 dry_run: true,
-                verbose: false,
-                json_pretty: false,
-                json_output: Some(notox::JsonOutput::Default),
+                output: Output::Default
             }
         );
         assert_eq!(res_path.len(), number + 1);
@@ -105,6 +107,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "serde")]
     fn test_parse_args_clean_directory_recursive() {
         let dir = "test_folder".to_string();
         setup(&dir);
@@ -123,9 +126,10 @@ mod tests {
             options,
             notox::NotoxArgs {
                 dry_run: false,
-                verbose: false,
-                json_pretty: false,
-                json_output: Some(notox::JsonOutput::Default),
+                output: Output::JsonOutput {
+                    json: JsonOutput::JsonDefault,
+                    pretty: false
+                }
             }
         );
         assert_eq!(res_path.len(), 5);
@@ -145,9 +149,7 @@ mod tests {
             options,
             notox::NotoxArgs {
                 dry_run: false,
-                verbose: true,
-                json_pretty: false,
-                json_output: None,
+                output: Output::Default
             }
         );
         assert_eq!(res_path.len(), 5);

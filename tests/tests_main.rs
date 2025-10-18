@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use assert_cmd::prelude::*; // Add methods on commands
-    use predicates::prelude::*; // Used for writing assertions
+    // Add methods on commands
+    use assert_cmd::prelude::*;
+    // Used for writing assertions
+    use predicates::prelude::*;
     use std::process::Command; // Run programs
 
     #[test]
@@ -41,7 +43,9 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "serde")]
     fn test_main_json() {
+        use serde_json::{json, Value};
         let mut cmd = Command::cargo_bin("notox").unwrap();
 
         cmd.arg("README.md").arg("Cargo.toml").arg("-j");
@@ -49,21 +53,49 @@ mod tests {
         let stdout = String::from_utf8(cmd.output().unwrap().stdout).unwrap();
         let idx = stdout.find("README.md").unwrap();
         println!("Index: {}", idx);
-        let (name1, name2) = if idx == 10 {
-            ("README.md", "Cargo.toml")
+        let (json_result, (name1, name2)) = if idx == 10 {
+            let json_val = json!([
+                {
+                    "path": "README.md",
+                    "modified": null,
+                    "error": null,
+                },
+                {
+                    "path": "Cargo.toml",
+                    "modified": null,
+                    "error": null,
+                }
+            ]);
+            (json_val, ("README.md", "Cargo.toml"))
         } else {
-            ("Cargo.toml", "README.md")
+            let json_val = json!([
+                {
+                    "path": "Cargo.toml",
+                    "modified": null,
+                    "error": null,
+                },
+                {
+                    "path": "README.md",
+                    "modified": null,
+                    "error": null,
+                }
+            ]);
+            (json_val, ("Cargo.toml", "README.md"))
         };
-        let result = format!(
+        let str_json = format!(
             r#"[{{"path":"{}","modified":null,"error":null}},{{"path":"{}","modified":null,"error":null}}]
 "#,
             name1, name2
         );
-        assert_eq!(stdout, result);
+        assert_eq!(stdout, str_json);
+        let json_deserialized: Value = serde_json::from_str(&stdout).unwrap();
+        assert_eq!(json_deserialized, json_result);
     }
 
     #[test]
+    #[cfg(feature = "serde")]
     fn test_main_json_pretty() {
+        use serde_json::{json, Value};
         let mut cmd = Command::cargo_bin("notox").unwrap();
 
         cmd.arg("README.md").arg("Cargo.toml").arg("-p");
@@ -71,12 +103,36 @@ mod tests {
         let stdout = String::from_utf8(cmd.output().unwrap().stdout).unwrap();
         let idx = stdout.find("README.md").unwrap();
         println!("Index: {}", idx);
-        let (name1, name2) = if idx == 19 {
-            ("README.md", "Cargo.toml")
+        let (json_result, (name1, name2)) = if idx == 19 {
+            let json_val = json!([
+                {
+                    "path": "README.md",
+                    "modified": null,
+                    "error": null,
+                },
+                {
+                    "path": "Cargo.toml",
+                    "modified": null,
+                    "error": null,
+                }
+            ]);
+            (json_val, ("README.md", "Cargo.toml"))
         } else {
-            ("Cargo.toml", "README.md")
+            let json_val = json!([
+                {
+                    "path": "Cargo.toml",
+                    "modified": null,
+                    "error": null,
+                },
+                {
+                    "path": "README.md",
+                    "modified": null,
+                    "error": null,
+                }
+            ]);
+            (json_val, ("Cargo.toml", "README.md"))
         };
-        let result = format!(
+        let str_json = format!(
             r#"[
   {{
     "path": "{}",
@@ -92,6 +148,37 @@ mod tests {
 "#,
             name1, name2
         );
-        assert_eq!(stdout, result);
+        assert_eq!(stdout, str_json);
+        let json_deserialized: Value = serde_json::from_str(&stdout).unwrap();
+        assert_eq!(json_deserialized, json_result);
+    }
+
+    #[test]
+    #[cfg(feature = "serde")]
+    fn test_main_serialize() {
+        use std::{collections::HashSet, path::PathBuf};
+
+        use notox::{notox, JsonOutput, NotoxArgs, Output, PathChange};
+
+        let notox_args = NotoxArgs {
+            dry_run: true,
+            output: Output::JsonOutput {
+                json: JsonOutput::JsonDefault,
+                pretty: true,
+            },
+        };
+        let path_to_check: HashSet<PathBuf> =
+            HashSet::from(["README.md".into(), "Cargo.toml".into()]);
+        let result_lib = notox(&notox_args, &path_to_check);
+        let result_lib: HashSet<PathChange> = result_lib.into_iter().collect();
+
+        let mut cmd = Command::cargo_bin("notox").unwrap();
+        cmd.arg("README.md").arg("Cargo.toml").arg("-p");
+        cmd.assert().success();
+        let stdout = String::from_utf8(cmd.output().unwrap().stdout).unwrap();
+        let result_bin: Vec<PathChange> = serde_json::from_str(&stdout).unwrap();
+        let result_bin: HashSet<PathChange> = result_bin.into_iter().collect();
+
+        assert_eq!(result_lib, result_bin);
     }
 }

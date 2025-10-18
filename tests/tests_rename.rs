@@ -2,12 +2,10 @@
 mod tests {
     use std::{collections::HashSet, path::PathBuf};
 
-    use notox::PathChange;
-    const TESTS_FIELDS_NOT_DRY_RUN: notox::NotoxArgs = notox::NotoxArgs {
+    use notox::{NotoxArgs, Output, PathChange};
+    const TESTS_FIELDS_NOT_DRY_RUN: NotoxArgs = NotoxArgs {
         dry_run: false,
-        verbose: false,
-        json_pretty: false,
-        json_output: Some(notox::JsonOutput::Default),
+        output: Output::Default,
     };
 
     #[test]

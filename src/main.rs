@@ -1,10 +1,7 @@
-use notox::{notox_full, parse_args};
+use notox::Notox;
 
 fn main() -> Result<(), ()> {
     let args: Vec<String> = std::env::args().collect();
-    let exit_code = match parse_args(&args) {
-        Ok((options, paths)) => notox_full(&options, paths),
-        Err(code) => code,
-    };
+    let exit_code = Notox::run_main_from_args(&args);
     std::process::exit(exit_code);
 }

@@ -32,6 +32,12 @@ cargo test -- --show-output
 cargo test <test_name>
 ```
 
+## 2025-10-18
+
+- Bump to version `1.4.1`
+- Add `rayon`
+- Change args
+
 ## 2025-10-16
 
 - Bump to version `1.2.1`

@@ -1,13 +1,40 @@
 //! notox is a tool to clean file names.
 //!
+//! ## Usage as a binary
+//!
 //! ```shell
 //! # install notox
 //! cargo install notox
-//! # then use it
+//! # then use it (dry-run by default)
 //! notox .
+//! # to rename the file
+//! notox -d .
+//! ```
+//!
+//! ## Usage as a library
+//!
+//! ```rust
+//! use std::collections::HashSet;
+//! use std::path::PathBuf;
+//! use notox::{notox, JsonOutput, Notox, NotoxArgs, Output};
+//!
+//! let paths: HashSet<PathBuf> = HashSet::from(["README.md".into(), "Cargo.toml".into()]);
+//! let notox_args = NotoxArgs {
+//!     dry_run: true, // change here
+//!     output: Output::JsonOutput {
+//!         json: JsonOutput::JsonDefault,
+//!         pretty: false,
+//!     },
+//!     // output: Output::Quiet
+//! };
+//! // as rust struct
+//! let res = Notox::new(&notox_args).run(&paths);
+//! // as function
+//! let res = notox(&notox_args, &paths);
 //! ```
 //!
 //! Coverage is available at [https://n4n5.dev/notox/coverage/](https://n4n5.dev/notox/coverage/)
+//!
 
 #![warn(clippy::all, rust_2018_idioms)]
 #![deny(
@@ -19,6 +46,7 @@
     clippy::cargo
 )]
 
+use core::fmt;
 use std::{
     collections::HashSet,
     ffi::{OsStr, OsString},
@@ -29,12 +57,50 @@ use std::{
 use rayon::{iter::Either, prelude::*};
 
 /// Type of JSON output
+#[cfg(feature = "serde")]
 #[derive(Debug, Clone, PartialEq)]
 pub enum JsonOutput {
     /// full json output
-    Default,
+    JsonDefault,
+
     /// only errors in json output
-    OnlyError,
+    JsonOnlyError,
+}
+
+#[cfg(feature = "serde")]
+impl fmt::Display for JsonOutput {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            JsonOutput::JsonDefault => write!(f, "json-default"),
+            JsonOutput::JsonOnlyError => write!(f, "json-only-error"),
+        }
+    }
+}
+
+/// Type of output
+#[derive(Debug, Clone, PartialEq)]
+pub enum Output {
+    /// default verbose output
+    Default,
+
+    /// quiet output
+    Quiet,
+
+    /// json output type and pretty print flag
+    #[cfg(feature = "serde")]
+    JsonOutput {
+        /// which kind of json output to use
+        json: JsonOutput,
+        /// whether to pretty print the json output
+        pretty: bool,
+    },
+}
+
+impl Output {
+    /// Check if the output is verbose
+    pub fn is_verbose(&self) -> bool {
+        matches!(self, Output::Default)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -42,18 +108,30 @@ pub enum JsonOutput {
 pub struct NotoxArgs {
     /// if true, the program will not rename files
     pub dry_run: bool,
-    #[cfg(feature = "serde")]
+
     /// which kind of json output to use
-    pub json_output: Option<JsonOutput>,
-    #[cfg(feature = "serde")]
-    /// which kind of json output to use
-    pub json_pretty: bool,
-    /// verbosity of the program
-    pub verbose: bool,
+    pub output: Output,
+}
+
+impl NotoxArgs {
+    /// Create a new NotoxArgs instance with default values
+    pub fn is_vervose(&self) -> bool {
+        self.output.is_verbose()
+    }
+}
+
+impl fmt::Display for NotoxArgs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // We don't need to print output when
+        // - it's Output::Quiet because it's quiet
+        // - it's Output::JsonOutput because it's json
+        // so, only one case is default
+        write!(f, "NotoxArgs {{ dry_run: {} }}", self.dry_run)
+    }
 }
 
 /// Contains information about a result of a single file
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum PathChange {
     /// The path has not been changed
     Unchanged {
@@ -86,43 +164,36 @@ pub enum PathChange {
 }
 
 #[cfg(feature = "serde")]
-struct PathSerializer<'a> {
-    /// The original path
-    path: &'a PathBuf,
-    /// The modified path
-    modified: Option<&'a PathBuf>,
-    /// The error message
-    error: Option<&'a String>,
-}
+impl<'de> serde::Deserialize<'de> for PathChange {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize)]
+        struct Helper {
+            /// Path string
+            path: String,
+            /// Modified string
+            modified: Option<String>,
+            /// Error string
+            error: Option<String>,
+        }
 
-#[cfg(feature = "serde")]
-impl<'a> From<&'a PathChange> for PathSerializer<'a> {
-    fn from(pc: &'a PathChange) -> Self {
-        match pc {
-            PathChange::Unchanged { path } => PathSerializer {
+        let helper = Helper::deserialize(deserializer)?;
+
+        let path = PathBuf::from(helper.path);
+        match (helper.modified, helper.error) {
+            (None, None) => Ok(PathChange::Unchanged { path }),
+            (Some(modified), None) => Ok(PathChange::Changed {
                 path,
-                modified: None,
-                error: None,
-            },
-            PathChange::Changed { path, modified } => PathSerializer {
+                modified: PathBuf::from(modified),
+            }),
+            (Some(modified), Some(error)) => Ok(PathChange::ErrorRename {
                 path,
-                modified: Some(modified),
-                error: None,
-            },
-            PathChange::ErrorRename {
-                path,
-                modified,
+                modified: PathBuf::from(modified),
                 error,
-            } => PathSerializer {
-                path,
-                modified: Some(modified),
-                error: Some(error),
-            },
-            PathChange::Error { path, error } => PathSerializer {
-                path,
-                modified: None,
-                error: Some(error),
-            },
+            }),
+            (None, Some(error)) => Ok(PathChange::Error { path, error }),
         }
     }
 }
@@ -135,11 +206,33 @@ impl serde::Serialize for PathChange {
     {
         use serde::ser::SerializeStruct;
 
-        let path_serializer = PathSerializer::from(self);
         let mut state = serializer.serialize_struct("PathChange", 3)?;
-        state.serialize_field("path", &path_serializer.path)?;
-        state.serialize_field("modified", &path_serializer.modified)?;
-        state.serialize_field("error", &path_serializer.error)?;
+        match self {
+            PathChange::Unchanged { path } => {
+                state.serialize_field("path", path)?;
+                state.serialize_field("modified", &Option::<PathBuf>::None)?;
+                state.serialize_field("error", &Option::<String>::None)?;
+            }
+            PathChange::Changed { path, modified } => {
+                state.serialize_field("path", path)?;
+                state.serialize_field("modified", &Some(modified))?;
+                state.serialize_field("error", &Option::<String>::None)?;
+            }
+            PathChange::ErrorRename {
+                path,
+                modified,
+                error,
+            } => {
+                state.serialize_field("path", path)?;
+                state.serialize_field("modified", &Some(modified))?;
+                state.serialize_field("error", &Some(error))?;
+            }
+            PathChange::Error { path, error } => {
+                state.serialize_field("path", path)?;
+                state.serialize_field("modified", &Option::<PathBuf>::None)?;
+                state.serialize_field("error", &Some(error))?;
+            }
+        }
         state.end()
     }
 }
@@ -352,6 +445,7 @@ pub fn convert_two_to_u32(first_byte: u8, second_byte: u8) -> u32 {
 }
 
 /// Clean a name
+#[inline(always)]
 fn clean_name(path: &OsStr, _options: &NotoxArgs) -> OsString {
     // for each byte of the path if it's not ascii, replace it with _
     let mut new_name = String::new();
@@ -541,18 +635,20 @@ fn clean_directory(dir_path: &Path, options: &NotoxArgs) -> Vec<PathChange> {
 }
 
 /// Get the path of a directory
-fn get_path_of_dir(dir_path: &str) -> Vec<PathBuf> {
-    let mut path_to_check: Vec<PathBuf> = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(dir_path) {
-        for entry in entries.flatten() {
-            let file_path = entry.path();
-            path_to_check.push(file_path)
-        }
+#[inline(always)]
+fn get_path_of_dir(dir_path: &str) -> HashSet<PathBuf> {
+    match std::fs::read_dir(dir_path) {
+        Ok(dir_entries) => dir_entries
+            .into_iter()
+            .filter_map(Result::ok)
+            .map(|e| e.path().to_path_buf())
+            .collect(),
+        Err(_) => HashSet::new(),
     }
-    path_to_check
 }
 
 /// Show the version
+#[inline(always)]
 fn show_version() {
     /// Version of the program
     const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -566,11 +662,7 @@ fn show_version() {
 /// Return an error if the path is not found
 pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32> {
     let mut dry_run = true;
-    let mut verbose = true;
-    #[cfg(feature = "serde")]
-    let mut json_output = None;
-    #[cfg(feature = "serde")]
-    let mut json_pretty = false;
+    let mut output = Output::Default;
     let mut path_to_check: HashSet<PathBuf> = HashSet::new();
     for one_arg in &args[1..] {
         if one_arg == "-d" || one_arg == "--do" {
@@ -593,9 +685,19 @@ pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32>
         } else if one_arg == "-p" || one_arg == "--json-pretty" {
             #[cfg(feature = "serde")]
             {
-                json_output = Some(JsonOutput::Default);
-                json_pretty = true;
-                verbose = false;
+                output = match output {
+                    Output::JsonOutput {
+                        json: json_output,
+                        pretty: _,
+                    } => Output::JsonOutput {
+                        json: json_output,
+                        pretty: true,
+                    },
+                    _ => Output::JsonOutput {
+                        json: JsonOutput::JsonDefault,
+                        pretty: true,
+                    },
+                };
             }
             #[cfg(not(feature = "serde"))]
             {
@@ -605,8 +707,16 @@ pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32>
         } else if one_arg == "-e" || one_arg == "--json-error" {
             #[cfg(feature = "serde")]
             {
-                json_output = Some(JsonOutput::OnlyError);
-                verbose = false;
+                output = match output {
+                    Output::JsonOutput { json: _, pretty } => Output::JsonOutput {
+                        json: JsonOutput::JsonOnlyError,
+                        pretty,
+                    },
+                    _ => Output::JsonOutput {
+                        json: JsonOutput::JsonOnlyError,
+                        pretty: false,
+                    },
+                };
             }
             #[cfg(not(feature = "serde"))]
             {
@@ -616,8 +726,16 @@ pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32>
         } else if one_arg == "-j" || one_arg == "--json" {
             #[cfg(feature = "serde")]
             {
-                json_output = Some(JsonOutput::Default);
-                verbose = false;
+                output = match output {
+                    Output::JsonOutput { json: _, pretty } => Output::JsonOutput {
+                        json: JsonOutput::JsonDefault,
+                        pretty,
+                    },
+                    _ => Output::JsonOutput {
+                        json: JsonOutput::JsonDefault,
+                        pretty: false,
+                    },
+                };
             }
             #[cfg(not(feature = "serde"))]
             {
@@ -625,14 +743,14 @@ pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32>
                 return Err(2);
             }
         } else if one_arg == "-q" || one_arg == "--quiet" {
-            verbose = false;
+            output = Output::Quiet;
         } else if one_arg == "*" {
             // should not happen with most shells
             let paths = get_path_of_dir(".");
             path_to_check.extend(paths);
         } else if std::fs::metadata(one_arg).is_ok() {
             path_to_check.insert(PathBuf::from(one_arg));
-        } else if verbose {
+        } else if output.is_verbose() {
             println!("Cannot find path: {}", one_arg);
         }
     }
@@ -640,137 +758,149 @@ pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32>
         let paths = get_path_of_dir(".");
         path_to_check.extend(paths);
     }
-    Ok((
-        NotoxArgs {
-            dry_run,
-            verbose,
-            #[cfg(feature = "serde")]
-            json_output,
-            #[cfg(feature = "serde")]
-            json_pretty,
-        },
-        path_to_check,
-    ))
+    Ok((NotoxArgs { dry_run, output }, path_to_check))
 }
 
 /// Print the output of the program conforming to the options
 /// # Errors
 /// Return an error if the output cannot be serialized
 pub fn print_output(options: &NotoxArgs, final_res: Vec<PathChange>) -> Result<(), i32> {
-    if options.verbose {
-        let len = final_res.len();
-        for one_change in final_res {
-            match one_change {
-                PathChange::Unchanged { .. } => {}
-                PathChange::Changed { path, modified } => {
-                    println!("{:?} -> {:?}", path, modified);
-                }
-                PathChange::Error { path, error } => {
-                    println!("{:?} : {}", path, error);
-                }
-                PathChange::ErrorRename {
-                    path,
-                    modified,
-                    error,
-                } => {
-                    println!("{:?} -> {:?} : {}", path, modified, error);
+    match &options.output {
+        Output::Default => {
+            let len = final_res.len();
+            for one_change in final_res {
+                match one_change {
+                    PathChange::Unchanged { .. } => {}
+                    PathChange::Changed { path, modified } => {
+                        println!("{} -> {}", path.display(), modified.display());
+                    }
+                    PathChange::Error { path, error } => {
+                        println!("{} : {}", path.display(), error);
+                    }
+                    PathChange::ErrorRename {
+                        path,
+                        modified,
+                        error,
+                    } => {
+                        println!("{} -> {} : {}", path.display(), modified.display(), error);
+                    }
                 }
             }
+            if len == 1 {
+                println!("{} file checked", len);
+            } else {
+                println!("{} files checked", len);
+            }
         }
-        if len == 1 {
-            println!("{} file checked", len);
-        } else {
-            println!("{} files checked", len);
-        }
-    } else if cfg!(feature = "serde") {
         #[cfg(feature = "serde")]
-        {
-            if let Some(json_output) = &options.json_output {
-                let vec_to_json = match json_output {
-                    JsonOutput::Default => final_res,
-                    JsonOutput::OnlyError => {
-                        let mut vec_to_json: Vec<PathChange> = Vec::new();
-                        for one_change in final_res {
-                            match one_change {
-                                PathChange::Unchanged { .. } => {}
-                                PathChange::Changed { .. } => {}
-                                one_res @ PathChange::Error { .. } => {
-                                    vec_to_json.push(one_res);
-                                }
-                                one_res @ PathChange::ErrorRename { .. } => {
-                                    vec_to_json.push(one_res);
-                                }
+        Output::JsonOutput {
+            json: json_output,
+            pretty: json_pretty,
+        } => {
+            let vec_to_json = match json_output {
+                JsonOutput::JsonDefault => final_res,
+                JsonOutput::JsonOnlyError => {
+                    let mut vec_to_json: Vec<PathChange> = Vec::new();
+                    for one_change in final_res {
+                        match one_change {
+                            PathChange::Unchanged { .. } => {}
+                            PathChange::Changed { .. } => {}
+                            one_res @ PathChange::Error { .. } => {
+                                vec_to_json.push(one_res);
+                            }
+                            one_res @ PathChange::ErrorRename { .. } => {
+                                vec_to_json.push(one_res);
                             }
                         }
-                        vec_to_json
                     }
-                };
-                let json_string = if options.json_pretty {
-                    serde_json::to_string_pretty(&vec_to_json)
-                } else {
-                    serde_json::to_string(&vec_to_json)
-                };
-                match json_string {
-                    Ok(stringed) => println!("{}", stringed),
-                    Err(_) => {
-                        println!(r#"{{"error": "Cannot serialize result"}}"#);
-                        return Err(2);
-                    }
+                    vec_to_json
+                }
+            };
+            let json_string = match json_pretty {
+                true => serde_json::to_string_pretty(&vec_to_json),
+                false => serde_json::to_string(&vec_to_json),
+            };
+            match json_string {
+                Ok(stringed) => println!("{}", stringed),
+                Err(_) => {
+                    println!(r#"{{"error": "Cannot serialize result"}}"#);
+                    return Err(2);
                 }
             }
         }
+        Output::Quiet => {}
     }
     Ok(())
 }
 
 /// Do the program, return the Vector of result
-pub fn notox(full_options: &NotoxArgs, paths_to_check: &HashSet<PathBuf>) -> Vec<PathChange> {
-    Notox::new(full_options).run(paths_to_check)
-}
-
-/// main function of the program: clean and print the output
-pub fn notox_full(full_options: &NotoxArgs, paths_to_check: HashSet<PathBuf>) -> i32 {
-    Notox::new(full_options).run_and_print(&paths_to_check)
+pub fn notox(notox_args: &NotoxArgs, paths_to_check: &HashSet<PathBuf>) -> Vec<PathChange> {
+    Notox::new(notox_args).run(paths_to_check)
 }
 
 /// Notox struct
 pub struct Notox {
     /// Options
-    options: NotoxArgs,
+    notox_args: NotoxArgs,
 }
 
 impl Notox {
     /// Create a new Notox instance
-    pub fn new(options: &NotoxArgs) -> Notox {
+    pub fn new(notox_args: &NotoxArgs) -> Notox {
         Notox {
-            options: options.clone(),
+            notox_args: notox_args.clone(),
+        }
+    }
+
+    /// Run from args
+    /// # Errors
+    /// Returns error if parse_args fails
+    pub fn run_from_args(args: &[String]) -> Result<Vec<PathChange>, i32> {
+        match parse_args(args) {
+            Ok((notox_args, paths)) => Ok(Notox::new(&notox_args).run(&paths)),
+            Err(code) => Err(code),
+        }
+    }
+
+    /// Run main from args
+    pub fn run_main_from_args(args: &[String]) -> i32 {
+        match parse_args(args) {
+            Ok((notox_args, paths)) => Notox::new(&notox_args).run_and_print(&paths),
+            Err(code) => code,
         }
     }
 
     /// Run the Notox instance
     pub fn run(&self, paths_to_check: &HashSet<PathBuf>) -> Vec<PathChange> {
-        if self.options.verbose {
-            println!("Running with options: {:?}", &self.options);
+        if self.notox_args.is_vervose() {
+            println!("Running with options: {}", &self.notox_args);
         }
-        let mut final_res = Vec::new();
-        for one_path in paths_to_check {
-            if self.options.verbose {
-                println!("Checking: {:?}", one_path);
-            }
-            let one_res = if one_path.is_dir() {
-                clean_directory(one_path, &self.options)
-            } else {
-                Vec::from([clean_path(one_path, &self.options)])
-            };
-            final_res.extend(one_res);
-        }
-        final_res
+        #[cfg(feature = "rayon")]
+        let iter = paths_to_check.par_iter();
+        #[cfg(not(feature = "rayon"))]
+        let iter = paths_to_check.iter();
+
+        let results = iter
+            .map(|one_path| {
+                if self.notox_args.is_vervose() {
+                    println!("Checking: {}", one_path.display());
+                }
+                match one_path.is_dir() {
+                    true => clean_directory(one_path, &self.notox_args),
+                    false => {
+                        let one_cleaned = clean_path(one_path, &self.notox_args);
+                        vec![one_cleaned]
+                    }
+                }
+            })
+            .flatten();
+        results.collect::<Vec<PathChange>>()
     }
 
     /// Run the Notox instance and print the output
     pub fn run_and_print(self, path_to_check: &HashSet<PathBuf>) -> i32 {
         let final_res = self.run(path_to_check);
-        match print_output(&self.options, final_res) {
+        match print_output(&self.notox_args, final_res) {
             Ok(_) => 0,
             Err(code) => code,
         }
