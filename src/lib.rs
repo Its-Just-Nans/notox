@@ -16,16 +16,17 @@
 //! ```rust
 //! use std::collections::HashSet;
 //! use std::path::PathBuf;
-//! use notox::{notox, JsonOutput, Notox, NotoxArgs, Output};
+//! use notox::{notox, Notox, NotoxArgs, Output};
 //!
 //! let paths: HashSet<PathBuf> = HashSet::from(["README.md".into(), "Cargo.toml".into()]);
 //! let notox_args = NotoxArgs {
 //!     dry_run: true, // change here
-//!     output: Output::JsonOutput {
-//!         json: JsonOutput::JsonDefault,
-//!         pretty: false,
-//!     },
-//!     // output: Output::Quiet
+//!     // if using serde
+//!     // output: Output::JsonOutput {
+//!     //    json: JsonOutput::JsonDefault,
+//!     //    pretty: false,
+//!     // },
+//!     output: Output::Quiet
 //! };
 //! // as rust struct
 //! let res = Notox::new(&notox_args).run(&paths);
@@ -418,7 +419,7 @@ pub fn check_similar(curr_char: Option<char>, name_acc: &mut String, last_was_un
 
 /// Convert four bytes to a u32
 #[inline(always)]
-pub(crate) fn convert_four_to_u32(
+pub fn convert_four_to_u32(
     first_byte: u8,
     second_byte: u8,
     third_byte: u8,
@@ -432,7 +433,7 @@ pub(crate) fn convert_four_to_u32(
 
 /// Convert three bytes to a u32
 #[inline(always)]
-pub(crate) fn convert_three_to_u32(first_byte: u8, second_byte: u8, third_byte: u8) -> u32 {
+pub fn convert_three_to_u32(first_byte: u8, second_byte: u8, third_byte: u8) -> u32 {
     ((first_byte as u32 & 0b0001_1111) << 12)
         | ((second_byte as u32 & 0b0011_1111) << 6)
         | (third_byte as u32 & 0b0011_1111)
@@ -440,7 +441,7 @@ pub(crate) fn convert_three_to_u32(first_byte: u8, second_byte: u8, third_byte: 
 
 /// Convert two bytes to a u32
 #[inline(always)]
-pub(crate) fn convert_two_to_u32(first_byte: u8, second_byte: u8) -> u32 {
+pub fn convert_two_to_u32(first_byte: u8, second_byte: u8) -> u32 {
     ((first_byte as u32 & 0b0001_1111) << 6) | (second_byte as u32 & 0b0011_1111)
 }
 
