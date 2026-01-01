@@ -4,7 +4,7 @@ mod tests {
 
     #[cfg(feature = "serde")]
     use notox::JsonOutput;
-    use notox::Output;
+    use notox::{Notox, NotoxOutput};
 
     #[test]
     fn test_parse_args_clean_directory() {
@@ -12,7 +12,7 @@ mod tests {
         let vec_args = ["notox".to_string(), dir.clone()];
         let res = notox::parse_args(&vec_args);
         let (options, vect) = res.ok().unwrap();
-        let res_path = notox::notox(&options, &vect);
+        let res_path = Notox::new(options.clone()).run(&vect);
         let number = std::fs::read_dir(dir)
             .ok()
             .unwrap()
@@ -22,7 +22,7 @@ mod tests {
             options,
             notox::NotoxArgs {
                 dry_run: true,
-                output: Output::Default
+                output: NotoxOutput::Default
             }
         );
         assert_eq!(res_path.len(), number + 1);
@@ -37,7 +37,9 @@ mod tests {
     fn setup(dir: &String) {
         let directory_path = PathBuf::from(dir);
 
-        cleanup(dir);
+        if directory_path.exists() {
+            cleanup(dir);
+        }
         std::fs::create_dir(&directory_path).unwrap();
         std::fs::File::create(directory_path.join("test 1.txt")).unwrap();
         std::fs::File::create(directory_path.join("test_2.txt")).unwrap();
@@ -120,13 +122,13 @@ mod tests {
         ];
         let res = notox::parse_args(&vec_args);
         let (options, vect) = res.ok().unwrap();
-        let res_path = notox::notox(&options, &vect);
+        let res_path = Notox::new(options.clone()).run(&vect);
 
         assert_eq!(
             options,
             notox::NotoxArgs {
                 dry_run: false,
-                output: Output::JsonOutput {
+                output: NotoxOutput::JsonOutput {
                     json: JsonOutput::JsonDefault,
                     pretty: false
                 }
@@ -144,12 +146,12 @@ mod tests {
         let vec_args = ["notox".to_string(), dir.clone(), "-d".to_string()];
         let res = notox::parse_args(&vec_args);
         let (options, vect) = res.ok().unwrap();
-        let res_path = notox::notox(&options, &vect);
+        let res_path = Notox::new(options.clone()).run(&vect);
         assert_eq!(
             options,
             notox::NotoxArgs {
                 dry_run: false,
-                output: Output::Default
+                output: NotoxOutput::Default
             }
         );
         assert_eq!(res_path.len(), 5);

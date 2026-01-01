@@ -25,6 +25,27 @@ mod tests {
     }
 
     #[test]
+    fn test_main_normal_wrong_path() {
+        let mut cmd = Command::cargo_bin("notox").unwrap();
+
+        cmd.arg("README"); // invalid path
+        cmd.assert()
+            .code(1)
+            .stdout(predicate::str::contains("Cannot find path: README"));
+    }
+
+    #[test]
+    fn test_main_normal_one_wrong_path() {
+        let mut cmd = Command::cargo_bin("notox").unwrap();
+
+        cmd.arg("README.md");
+        cmd.arg("README"); // invalid path
+        cmd.assert()
+            .code(0)
+            .stdout(predicate::str::contains("1 file checked"));
+    }
+
+    #[test]
     fn test_main_quiet() {
         let mut cmd = Command::cargo_bin("notox").unwrap();
 
@@ -158,18 +179,18 @@ mod tests {
     fn test_main_serialize() {
         use std::{collections::HashSet, path::PathBuf};
 
-        use notox::{notox, JsonOutput, NotoxArgs, Output, PathChange};
+        use notox::{JsonOutput, Notox, NotoxArgs, NotoxOutput, PathChange};
 
         let notox_args = NotoxArgs {
             dry_run: true,
-            output: Output::JsonOutput {
+            output: NotoxOutput::JsonOutput {
                 json: JsonOutput::JsonDefault,
                 pretty: true,
             },
         };
         let path_to_check: HashSet<PathBuf> =
             HashSet::from(["README.md".into(), "Cargo.toml".into()]);
-        let result_lib = notox(&notox_args, &path_to_check);
+        let result_lib = Notox::new(notox_args).run(&path_to_check);
         let result_lib: HashSet<PathChange> = result_lib.into_iter().collect();
 
         let mut cmd = Command::cargo_bin("notox").unwrap();

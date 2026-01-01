@@ -32,6 +32,12 @@ cargo test -- --show-output
 cargo test <test_name>
 ```
 
+## 2026-01-01
+
+- Bump to version `1.5.0`
+- Make lib as `pedantic`
+- More opinionated `_-_` is `_`, `_.` is `.`, `..` is `.`
+
 ## 2025-10-18
 
 - Bump to version `1.4.1`

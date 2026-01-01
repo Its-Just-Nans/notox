@@ -4,31 +4,31 @@ mod tests {
 
     #[cfg(feature = "serde")]
     use notox::JsonOutput;
-    use notox::{Notox, NotoxArgs, Output};
+    use notox::{Notox, NotoxArgs, NotoxOutput};
 
     #[test]
     fn test_print_output() {
         let args = [
             NotoxArgs {
                 dry_run: true,
-                output: Output::Default,
+                output: NotoxOutput::Default,
             },
             NotoxArgs {
                 dry_run: false,
-                output: Output::Default,
+                output: NotoxOutput::Default,
             },
             NotoxArgs {
                 dry_run: true,
-                output: Output::Quiet,
+                output: NotoxOutput::Quiet,
             },
             NotoxArgs {
                 dry_run: false,
-                output: Output::Quiet,
+                output: NotoxOutput::Quiet,
             },
             #[cfg(feature = "serde")]
             NotoxArgs {
                 dry_run: true,
-                output: Output::JsonOutput {
+                output: NotoxOutput::JsonOutput {
                     json: JsonOutput::JsonDefault,
                     pretty: false,
                 },
@@ -36,7 +36,7 @@ mod tests {
             #[cfg(feature = "serde")]
             NotoxArgs {
                 dry_run: false,
-                output: Output::JsonOutput {
+                output: NotoxOutput::JsonOutput {
                     json: JsonOutput::JsonDefault,
                     pretty: false,
                 },
@@ -44,7 +44,7 @@ mod tests {
             #[cfg(feature = "serde")]
             NotoxArgs {
                 dry_run: false,
-                output: Output::JsonOutput {
+                output: NotoxOutput::JsonOutput {
                     json: JsonOutput::JsonDefault,
                     pretty: true,
                 },
@@ -52,7 +52,7 @@ mod tests {
             #[cfg(feature = "serde")]
             NotoxArgs {
                 dry_run: true,
-                output: Output::JsonOutput {
+                output: NotoxOutput::JsonOutput {
                     json: JsonOutput::JsonOnlyError,
                     pretty: false,
                 },
@@ -60,7 +60,7 @@ mod tests {
             #[cfg(feature = "serde")]
             NotoxArgs {
                 dry_run: false,
-                output: Output::JsonOutput {
+                output: NotoxOutput::JsonOutput {
                     json: JsonOutput::JsonOnlyError,
                     pretty: false,
                 },
@@ -68,13 +68,13 @@ mod tests {
             #[cfg(feature = "serde")]
             NotoxArgs {
                 dry_run: false,
-                output: Output::JsonOutput {
+                output: NotoxOutput::JsonOutput {
                     json: JsonOutput::JsonOnlyError,
                     pretty: true,
                 },
             },
         ];
-        for options in args.iter() {
+        for options in args.into_iter() {
             let paths_to_check = HashSet::from([PathBuf::from("README.md")]);
             let notox_inst = Notox::new(options);
             let final_res = notox_inst.run(&paths_to_check);
@@ -119,7 +119,7 @@ mod tests {
     fn test_print_output_verbose_dry() {
         let options = NotoxArgs {
             dry_run: true,
-            output: Output::Default,
+            output: NotoxOutput::Default,
         };
         let to_correct = PathBuf::from("tes t verbose dry.txt");
         let read_only = PathBuf::from("test_verbose_dry.txt");
@@ -130,7 +130,7 @@ mod tests {
             to_correct.clone(),
             read_only.clone(),
         ]);
-        let notox_inst = Notox::new(&options);
+        let notox_inst = Notox::new(options);
         let final_res = notox_inst.run(&paths_to_check);
         notox_inst.print_output(final_res).unwrap();
 
@@ -142,7 +142,7 @@ mod tests {
     fn test_print_output_verbose_real() {
         let options = NotoxArgs {
             dry_run: false,
-            output: Output::Default,
+            output: NotoxOutput::Default,
         };
         let to_correct = PathBuf::from("tes t verbose.txt");
         let read_only = PathBuf::from("test_verbose.txt");
@@ -153,7 +153,7 @@ mod tests {
             to_correct.clone(),
             read_only.clone(),
         ]);
-        let notox_inst = Notox::new(&options);
+        let notox_inst = Notox::new(options);
         let final_res = notox_inst.run(&paths_to_check);
         notox_inst.print_output(final_res).unwrap();
 
@@ -166,7 +166,7 @@ mod tests {
     fn test_print_output_json_real() {
         let options = NotoxArgs {
             dry_run: false,
-            output: Output::JsonOutput {
+            output: NotoxOutput::JsonOutput {
                 json: JsonOutput::JsonDefault,
                 pretty: false,
             },
@@ -180,7 +180,7 @@ mod tests {
             to_correct.clone(),
             read_only.clone(),
         ]);
-        let notox_inst = Notox::new(&options);
+        let notox_inst = Notox::new(options);
         let final_res = notox_inst.run(&paths_to_check);
         notox_inst.print_output(final_res).unwrap();
 
@@ -193,7 +193,7 @@ mod tests {
     fn test_print_output_json_error_real() {
         let options = NotoxArgs {
             dry_run: false,
-            output: Output::JsonOutput {
+            output: NotoxOutput::JsonOutput {
                 json: JsonOutput::JsonOnlyError,
                 pretty: false,
             },
@@ -207,7 +207,7 @@ mod tests {
             to_correct.clone(),
             read_only.clone(),
         ]);
-        let notox_inst = Notox::new(&options);
+        let notox_inst = Notox::new(options);
         let final_res = notox_inst.run(&paths_to_check);
         notox_inst.print_output(final_res).unwrap();
 
@@ -220,7 +220,7 @@ mod tests {
     fn test_print_output_json_error_dry() {
         let options = NotoxArgs {
             dry_run: true,
-            output: Output::JsonOutput {
+            output: NotoxOutput::JsonOutput {
                 json: JsonOutput::JsonOnlyError,
                 pretty: false,
             },
@@ -234,7 +234,7 @@ mod tests {
             to_correct.clone(),
             read_only.clone(),
         ]);
-        let notox_inst = Notox::new(&options);
+        let notox_inst = Notox::new(options);
         let final_res = notox_inst.run(&paths_to_check);
         notox_inst.print_output(final_res).unwrap();
 

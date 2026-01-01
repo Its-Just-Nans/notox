@@ -4,7 +4,7 @@
 //!
 //! ```shell
 //! # install notox
-//! cargo install notox
+//! cargo install notox --locked
 //! # then use it (dry-run by default)
 //! notox .
 //! # to rename the file
@@ -16,23 +16,44 @@
 //! ```rust
 //! use std::collections::HashSet;
 //! use std::path::PathBuf;
-//! use notox::{notox, Notox, NotoxArgs, Output};
+//! use notox::{Notox, NotoxArgs, NotoxOutput};
 //!
 //! let paths: HashSet<PathBuf> = HashSet::from(["README.md".into(), "Cargo.toml".into()]);
 //! let notox_args = NotoxArgs {
 //!     dry_run: true, // change here
 //!     // if using serde
-//!     // output: Output::JsonOutput {
+//!     // output: NotoxOutput::JsonOutput {
 //!     //    json: JsonOutput::JsonDefault,
 //!     //    pretty: false,
 //!     // },
-//!     output: Output::Quiet
+//!     output: NotoxOutput::Quiet
 //! };
-//! // as rust struct (recommended)
-//! let res = Notox::new(&notox_args).run(&paths);
-//! // as function
-//! let res = notox(&notox_args, &paths);
+//! let res = Notox::new(notox_args).run(&paths);
 //! ```
+//!
+//! ## Usage as a library and printing the output
+//!
+//! ```rust
+//! use std::collections::HashSet;
+//! use std::path::PathBuf;
+//! use notox::{Notox, NotoxArgs, NotoxOutput};
+//!
+//! let paths: HashSet<PathBuf> = HashSet::from(["README.md".into(), "Cargo.toml".into()]);
+//! let notox_args = NotoxArgs {
+//!     dry_run: true, // change here
+//!     // if using serde
+//!     // output: NotoxOutput::JsonOutput {
+//!     //    json: JsonOutput::JsonDefault,
+//!     //    pretty: false,
+//!     // },
+//!     output: NotoxOutput::Quiet
+//! };
+//! let notox_inst = Notox::new(notox_args);
+//! let res = notox_inst.run(&paths);
+//! notox_inst.print_output(res);
+//! ```
+//!
+//! ## Coverage
 //!
 //! Coverage is available at [https://n4n5.dev/notox/coverage/](https://n4n5.dev/notox/coverage/)
 //!
@@ -44,7 +65,10 @@
     clippy::missing_docs_in_private_items,
     clippy::missing_errors_doc,
     clippy::missing_panics_doc,
-    clippy::cargo
+    clippy::cargo,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::pedantic
 )]
 
 use core::fmt;
@@ -70,7 +94,7 @@ pub enum JsonOutput {
 
 /// Type of output
 #[derive(Debug, Clone, PartialEq)]
-pub enum Output {
+pub enum NotoxOutput {
     /// default verbose output
     Default,
 
@@ -87,10 +111,11 @@ pub enum Output {
     },
 }
 
-impl Output {
+impl NotoxOutput {
     /// Check if the output is verbose
+    #[must_use]
     pub fn is_verbose(&self) -> bool {
-        matches!(self, Output::Default)
+        matches!(self, NotoxOutput::Default)
     }
 }
 
@@ -101,12 +126,13 @@ pub struct NotoxArgs {
     pub dry_run: bool,
 
     /// which kind of json output to use
-    pub output: Output,
+    pub output: NotoxOutput,
 }
 
 impl NotoxArgs {
-    /// Create a new NotoxArgs instance with default values
-    pub fn is_vervose(&self) -> bool {
+    /// Create a new [`NotoxArgs`] instance with default values
+    #[must_use]
+    pub fn is_verbose(&self) -> bool {
         self.output.is_verbose()
     }
 }
@@ -228,34 +254,30 @@ impl serde::Serialize for PathChange {
     }
 }
 
-/// Push a char to a string if a condition is true
-#[inline(always)]
-fn push_underscore_if(stri: &mut String, to_push: char, condition: bool) {
-    if condition {
-        stri.push(to_push);
-    }
-}
-
 /// Check if a vector of bytes is similar to a char
-#[inline(always)]
-pub fn check_similar(curr_char: Option<char>, name_acc: &mut String, last_was_under: bool) -> bool {
+#[inline]
+#[allow(clippy::too_many_lines)]
+pub fn check_similar(curr_char: Option<char>, name_acc: &mut String, last_was_ascii: bool) -> bool {
     if let Some(one_char) = curr_char {
         match one_char {
             'A' | 'Ⓐ' | 'Ａ' | 'À' | 'Á' | 'Â' | 'Ầ' | 'Ấ' | 'Ẫ' | 'Ẩ' | 'Ã' | 'Ā' | 'Ă' | 'Ằ'
             | 'Ắ' | 'Ẵ' | 'Ẳ' | 'Ȧ' | 'Ǡ' | 'Ä' | 'Ǟ' | 'Ả' | 'Å' | 'Ǻ' | 'Ǎ' | 'Ȁ' | 'Ȃ' | 'Ạ'
             | 'Ậ' | 'Ặ' | 'Ḁ' | 'Ą' | 'Ⱥ' | 'Ɐ' => name_acc.push('A'),
             'Ꜳ' => name_acc.push_str("AA"),
-            'Æ' | 'Ǽ' | 'Ǣ' => name_acc.push('A'),
+            'Æ' | 'Ǽ' | 'Ǣ' => {
+                name_acc.push_str("AE");
+            }
             'Ꜵ' => name_acc.push_str("AO"),
             'Ꜷ' => name_acc.push_str("AU"),
             'Ꜹ' | 'Ꜻ' => name_acc.push_str("AV"),
             'Ꜽ' => name_acc.push_str("AY"),
             'B' | 'Ⓑ' | 'Ｂ' | 'Ḃ' | 'Ḅ' | 'Ḇ' | 'Ƀ' | 'Ƃ' | 'Ɓ' => name_acc.push('B'),
             'C' | 'Ⓒ' | 'Ｃ' | 'Ć' | 'Ĉ' | 'Ċ' | 'Č' | 'Ç' | 'Ḉ' | 'Ƈ' | 'Ȼ' | 'Ꜿ' => {
-                name_acc.push('C')
+                name_acc.push('C');
             }
-            'D' | 'Ⓓ' | 'Ｄ' | 'Ḋ' | 'Ď' | 'Ḍ' | 'Ḑ' | 'Ḓ' | 'Ḏ' | 'Đ' | 'Ƌ' | 'Ɗ' | 'Ɖ' | 'Ꝺ' => {
-                name_acc.push('D')
+            'D' | 'Ⓓ' | 'Ｄ' | 'Ḋ' | 'Ď' | 'Ḍ' | 'Ḑ' | 'Ḓ' | 'Ḏ' | 'Đ' | 'Ƌ' | 'Ɗ' | 'Ɖ' | 'Ꝺ' =>
+            {
+                name_acc.push('D');
             }
             'Ǳ' | 'Ǆ' => name_acc.push_str("DZ"),
             'ǲ' | 'ǅ' => name_acc.push_str("Dz"),
@@ -265,14 +287,16 @@ pub fn check_similar(curr_char: Option<char>, name_acc: &mut String, last_was_un
             'F' | 'Ⓕ' | 'Ｆ' | 'Ḟ' | 'Ƒ' | 'Ꝼ' => name_acc.push('F'),
             'G' | 'Ⓖ' | 'Ｇ' | 'Ǵ' | 'Ĝ' | 'Ḡ' | 'Ğ' | 'Ġ' | 'Ǧ' | 'Ģ' | 'Ǥ' | 'Ɠ' | 'Ꞡ' | 'Ᵹ'
             | 'Ꝿ' => name_acc.push('G'),
-            'H' | 'Ⓗ' | 'Ｈ' | 'Ĥ' | 'Ḣ' | 'Ḧ' | 'Ȟ' | 'Ḥ' | 'Ḩ' | 'Ḫ' | 'Ħ' | 'Ⱨ' | 'Ⱶ' | 'Ɥ' => {
-                name_acc.push('H')
+            'H' | 'Ⓗ' | 'Ｈ' | 'Ĥ' | 'Ḣ' | 'Ḧ' | 'Ȟ' | 'Ḥ' | 'Ḩ' | 'Ḫ' | 'Ħ' | 'Ⱨ' | 'Ⱶ' | 'Ɥ' =>
+            {
+                name_acc.push('H');
             }
             'I' | 'Ⓘ' | 'Ｉ' | 'Ì' | 'Í' | 'Î' | 'Ĩ' | 'Ī' | 'Ĭ' | 'İ' | 'Ï' | 'Ḯ' | 'Ỉ' | 'Ǐ'
             | 'Ȉ' | 'Ȋ' | 'Ị' | 'Į' | 'Ḭ' | 'Ɨ' => name_acc.push('I'),
             'J' | 'Ⓙ' | 'Ｊ' | 'Ĵ' | 'Ɉ' => name_acc.push('J'),
-            'K' | 'Ⓚ' | 'Ｋ' | 'Ḱ' | 'Ǩ' | 'Ḳ' | 'Ķ' | 'Ḵ' | 'Ƙ' | 'Ⱪ' | 'Ꝁ' | 'Ꝃ' | 'Ꝅ' | 'Ꞣ' => {
-                name_acc.push('K')
+            'K' | 'Ⓚ' | 'Ｋ' | 'Ḱ' | 'Ǩ' | 'Ḳ' | 'Ķ' | 'Ḵ' | 'Ƙ' | 'Ⱪ' | 'Ꝁ' | 'Ꝃ' | 'Ꝅ' | 'Ꞣ' =>
+            {
+                name_acc.push('K');
             }
             'L' | 'Ⓛ' | 'Ｌ' | 'Ŀ' | 'Ĺ' | 'Ľ' | 'Ḷ' | 'Ḹ' | 'Ļ' | 'Ḽ' | 'Ḻ' | 'Ł' | 'Ƚ' | 'Ɫ'
             | 'Ⱡ' | 'Ꝉ' | 'Ꝇ' | 'Ꞁ' => name_acc.push('L'),
@@ -293,7 +317,7 @@ pub fn check_similar(curr_char: Option<char>, name_acc: &mut String, last_was_un
             '\u{008C}' | 'Œ' => name_acc.push_str("OE"),
             '\u{009C}' | 'œ' => name_acc.push_str("oe"),
             'P' | 'Ⓟ' | 'Ｐ' | 'Ṕ' | 'Ṗ' | 'Ƥ' | 'Ᵽ' | 'Ꝑ' | 'Ꝓ' | 'Ꝕ' => {
-                name_acc.push('P')
+                name_acc.push('P');
             }
             'Q' | 'Ⓠ' | 'Ｑ' | 'Ꝗ' | 'Ꝙ' | 'Ɋ' => name_acc.push('Q'),
             'R' | 'Ⓡ' | 'Ｒ' | 'Ŕ' | 'Ṙ' | 'Ř' | 'Ȑ' | 'Ȓ' | 'Ṛ' | 'Ṝ' | 'Ŗ' | 'Ṟ' | 'Ɍ' | 'Ɽ'
@@ -309,31 +333,34 @@ pub fn check_similar(curr_char: Option<char>, name_acc: &mut String, last_was_un
             'V' | 'Ⓥ' | 'Ｖ' | 'Ṽ' | 'Ṿ' | 'Ʋ' | 'Ꝟ' | 'Ʌ' => name_acc.push('V'),
             'Ꝡ' => name_acc.push_str("VY"),
             'W' | 'Ⓦ' | 'Ｗ' | 'Ẁ' | 'Ẃ' | 'Ŵ' | 'Ẇ' | 'Ẅ' | 'Ẉ' | 'Ⱳ' => {
-                name_acc.push('W')
+                name_acc.push('W');
             }
             'X' | 'Ⓧ' | 'Ｘ' | 'Ẋ' | 'Ẍ' => name_acc.push('X'),
             'Y' | 'Ⓨ' | 'Ｙ' | 'Ỳ' | 'Ý' | 'Ŷ' | 'Ỹ' | 'Ȳ' | 'Ẏ' | 'Ÿ' | 'Ỷ' | 'Ỵ' | 'Ƴ' | 'Ɏ'
             | 'Ỿ' => name_acc.push('Y'),
-            'Z' | 'Ⓩ' | 'Ｚ' | 'Ź' | 'Ẑ' | 'Ż' | 'Ž' | 'Ẓ' | 'Ẕ' | 'Ƶ' | 'Ȥ' | 'Ɀ' | 'Ⱬ' | 'Ꝣ' => {
-                name_acc.push('Z')
+            'Z' | 'Ⓩ' | 'Ｚ' | 'Ź' | 'Ẑ' | 'Ż' | 'Ž' | 'Ẓ' | 'Ẕ' | 'Ƶ' | 'Ȥ' | 'Ɀ' | 'Ⱬ' | 'Ꝣ' =>
+            {
+                name_acc.push('Z');
             }
             'a' | 'ⓐ' | 'ａ' | 'ẚ' | 'à' | 'á' | 'â' | 'ầ' | 'ấ' | 'ẫ' | 'ẩ' | 'ã' | 'ā' | 'ă'
             | 'ằ' | 'ắ' | 'ẵ' | 'ẳ' | 'ȧ' | 'ǡ' | 'ä' | 'ǟ' | 'ả' | 'å' | 'ǻ' | 'ǎ' | 'ȁ' | 'ȃ'
             | 'ạ' | 'ậ' | 'ặ' | 'ḁ' | 'ą' | 'ⱥ' | 'ɐ' => name_acc.push('a'),
             'ꜳ' => name_acc.push_str("aa"),
-            'æ' | 'ǽ' | 'ǣ' => name_acc.push('a'),
+            'æ' | 'ǽ' | 'ǣ' => name_acc.push_str("ae"),
             'ꜵ' => name_acc.push_str("ao"),
             'ꜷ' => name_acc.push_str("au"),
             'ꜹ' | 'ꜻ' => name_acc.push_str("av"),
             'ꜽ' => name_acc.push_str("ay"),
             'b' | 'ⓑ' | 'ｂ' | 'ḃ' | 'ḅ' | 'ḇ' | 'ƀ' | 'ƃ' | 'ɓ' | 'þ' => {
-                name_acc.push('b')
+                name_acc.push('b');
             }
-            'c' | 'ⓒ' | 'ｃ' | 'ć' | 'ĉ' | 'ċ' | 'č' | 'ç' | 'ḉ' | 'ƈ' | 'ȼ' | 'ꜿ' | 'ↄ' => {
-                name_acc.push('c')
+            'c' | 'ⓒ' | 'ｃ' | 'ć' | 'ĉ' | 'ċ' | 'č' | 'ç' | 'ḉ' | 'ƈ' | 'ȼ' | 'ꜿ' | 'ↄ' =>
+            {
+                name_acc.push('c');
             }
-            'd' | 'ⓓ' | 'ｄ' | 'ḋ' | 'ď' | 'ḍ' | 'ḑ' | 'ḓ' | 'ḏ' | 'đ' | 'ƌ' | 'ɖ' | 'ɗ' | 'ꝺ' => {
-                name_acc.push('d')
+            'd' | 'ⓓ' | 'ｄ' | 'ḋ' | 'ď' | 'ḍ' | 'ḑ' | 'ḓ' | 'ḏ' | 'đ' | 'ƌ' | 'ɖ' | 'ɗ' | 'ꝺ' =>
+            {
+                name_acc.push('d');
             }
             'ǳ' | 'ǆ' => name_acc.push_str("dz"),
             'e' | 'ⓔ' | 'ｅ' | 'è' | 'é' | 'ê' | 'ề' | 'ế' | 'ễ' | 'ể' | 'ẽ' | 'ē' | 'ḕ' | 'ḗ'
@@ -348,8 +375,9 @@ pub fn check_similar(curr_char: Option<char>, name_acc: &mut String, last_was_un
             'i' | 'ⓘ' | 'ｉ' | 'ì' | 'í' | 'î' | 'ĩ' | 'ī' | 'ĭ' | 'ï' | 'ḯ' | 'ỉ' | 'ǐ' | 'ȉ'
             | 'ȋ' | 'ị' | 'į' | 'ḭ' | 'ɨ' | 'ı' => name_acc.push('i'),
             'j' | 'ⓙ' | 'ｊ' | 'ĵ' | 'ǰ' | 'ɉ' => name_acc.push('j'),
-            'k' | 'ⓚ' | 'ｋ' | 'ḱ' | 'ǩ' | 'ḳ' | 'ķ' | 'ḵ' | 'ƙ' | 'ⱪ' | 'ꝁ' | 'ꝃ' | 'ꝅ' | 'ꞣ' => {
-                name_acc.push('k')
+            'k' | 'ⓚ' | 'ｋ' | 'ḱ' | 'ǩ' | 'ḳ' | 'ķ' | 'ḵ' | 'ƙ' | 'ⱪ' | 'ꝁ' | 'ꝃ' | 'ꝅ' | 'ꞣ' =>
+            {
+                name_acc.push('k');
             }
             'l' | 'ⓛ' | 'ｌ' | 'ŀ' | 'ĺ' | 'ľ' | 'ḷ' | 'ḹ' | 'ļ' | 'ḽ' | 'ḻ' | 'ſ' | 'ł' | 'ƚ'
             | 'ɫ' | 'ⱡ' | 'ꝉ' | 'ꞁ' | 'ꝇ' => name_acc.push('l'),
@@ -366,7 +394,7 @@ pub fn check_similar(curr_char: Option<char>, name_acc: &mut String, last_was_un
             'ȣ' => name_acc.push_str("ou"),
             'ꝏ' => name_acc.push_str("oo"),
             'p' | 'ⓟ' | 'ｐ' | 'ṕ' | 'ṗ' | 'ƥ' | 'ᵽ' | 'ꝑ' | 'ꝓ' | 'ꝕ' => {
-                name_acc.push('p')
+                name_acc.push('p');
             }
             'q' | 'ⓠ' | 'ｑ' | 'ɋ' | 'ꝗ' | 'ꝙ' => name_acc.push('q'),
             'r' | 'ⓡ' | 'ｒ' | 'ŕ' | 'ṙ' | 'ř' | 'ȑ' | 'ȓ' | 'ṛ' | 'ṝ' | 'ŗ' | 'ṟ' | 'ɍ' | 'ɽ'
@@ -382,13 +410,14 @@ pub fn check_similar(curr_char: Option<char>, name_acc: &mut String, last_was_un
             'v' | 'ⓥ' | 'ｖ' | 'ṽ' | 'ṿ' | 'ʋ' | 'ꝟ' | 'ʌ' => name_acc.push('v'),
             'ꝡ' => name_acc.push_str("vy"),
             'w' | 'ⓦ' | 'ｗ' | 'ẁ' | 'ẃ' | 'ŵ' | 'ẇ' | 'ẅ' | 'ẘ' | 'ẉ' | 'ⱳ' => {
-                name_acc.push('w')
+                name_acc.push('w');
             }
             'x' | 'ⓧ' | 'ｘ' | 'ẋ' | 'ẍ' => name_acc.push('x'),
             'y' | 'ⓨ' | 'ｙ' | 'ỳ' | 'ý' | 'ŷ' | 'ỹ' | 'ȳ' | 'ẏ' | 'ÿ' | 'ỷ' | 'ẙ' | 'ỵ' | 'ƴ'
             | 'ɏ' | 'ỿ' => name_acc.push('y'),
-            'z' | 'ⓩ' | 'ｚ' | 'ź' | 'ẑ' | 'ż' | 'ž' | 'ẓ' | 'ẕ' | 'ƶ' | 'ȥ' | 'ɀ' | 'ⱬ' | 'ꝣ' => {
-                name_acc.push('z')
+            'z' | 'ⓩ' | 'ｚ' | 'ź' | 'ẑ' | 'ż' | 'ž' | 'ẓ' | 'ẕ' | 'ƶ' | 'ȥ' | 'ɀ' | 'ⱬ' | 'ꝣ' =>
+            {
+                name_acc.push('z');
             }
             '–' => {
                 name_acc.push('-');
@@ -396,83 +425,93 @@ pub fn check_similar(curr_char: Option<char>, name_acc: &mut String, last_was_un
             }
             '\u{0300}'..='\u{036F}' | '\u{1AB0}'..='\u{1AFF}' | '\u{1DC0}'..='\u{1DFF}' => {}
             _ => {
-                if !last_was_under {
+                if last_was_ascii {
                     name_acc.push('_');
                 }
-                return true;
+                return false;
             }
-        };
-        return false;
+        }
+        return true;
     }
-    false
+    last_was_ascii
 }
 
 /// Convert four bytes to a u32
-#[inline(always)]
+#[inline]
+#[must_use]
 pub fn convert_four_to_u32(
     first_byte: u8,
     second_byte: u8,
     third_byte: u8,
     fourth_byte: u8,
 ) -> u32 {
-    ((first_byte as u32 & 0b0000_0111) << 18)
-        | ((second_byte as u32 & 0b0011_1111) << 12)
-        | ((third_byte as u32 & 0b0011_1111) << 6)
-        | (fourth_byte as u32 & 0b0011_1111)
+    ((u32::from(first_byte) & 0b0000_0111) << 18)
+        | ((u32::from(second_byte) & 0b0011_1111) << 12)
+        | ((u32::from(third_byte) & 0b0011_1111) << 6)
+        | (u32::from(fourth_byte) & 0b0011_1111)
 }
 
 /// Convert three bytes to a u32
-#[inline(always)]
+#[inline]
+#[must_use]
 pub fn convert_three_to_u32(first_byte: u8, second_byte: u8, third_byte: u8) -> u32 {
-    ((first_byte as u32 & 0b0001_1111) << 12)
-        | ((second_byte as u32 & 0b0011_1111) << 6)
-        | (third_byte as u32 & 0b0011_1111)
+    ((u32::from(first_byte) & 0b0001_1111) << 12)
+        | ((u32::from(second_byte) & 0b0011_1111) << 6)
+        | (u32::from(third_byte) & 0b0011_1111)
 }
 
 /// Convert two bytes to a u32
-#[inline(always)]
+#[inline]
+#[must_use]
 pub fn convert_two_to_u32(first_byte: u8, second_byte: u8) -> u32 {
-    ((first_byte as u32 & 0b0001_1111) << 6) | (second_byte as u32 & 0b0011_1111)
+    ((u32::from(first_byte) & 0b0001_1111) << 6) | (u32::from(second_byte) & 0b0011_1111)
 }
 
 /// Clean a name
-#[inline(always)]
+#[inline]
 fn clean_name(path: &OsStr, _options: &NotoxArgs) -> OsString {
     // for each byte of the path if it's not ascii, replace it with _
     let mut new_name = String::new();
     let mut vec_grapheme: [u8; 4] = [0; 4];
-    let mut last_was_underscore = false;
+    let mut last_was_ascii = false;
     let mut idx_grapheme = 0;
-    for byte in path.as_encoded_bytes().iter() {
+    for byte in path.as_encoded_bytes() {
+        // eprintln!("{} {} {}", byte, *byte as char, last_was_ascii);
         if idx_grapheme == 0 && *byte < 128 {
             match byte {
-                0..=44 => {
-                    push_underscore_if(&mut new_name, '_', !last_was_underscore);
-                    last_was_underscore = true;
-                }
                 46 => {
-                    new_name.push('.');
-                    last_was_underscore = false;
+                    if last_was_ascii {
+                        new_name.push('.');
+                        last_was_ascii = false;
+                    } else {
+                        match new_name.pop() {
+                            Some('.' | '_') | None => {
+                                // add or re-add the dot
+                                new_name.push('.');
+                            }
+                            Some(last_char) => {
+                                new_name.push(last_char);
+                                new_name.push('.');
+                            }
+                        }
+                    }
                 }
-                47 => {
-                    push_underscore_if(&mut new_name, '_', !last_was_underscore);
-                    last_was_underscore = true;
+                0..=44 | 47 | 58..=64 | 91..=96 | 123..=127 => {
+                    if last_was_ascii {
+                        new_name.push('_');
+                        last_was_ascii = false;
+                    }
                 }
-                58..=64 => {
-                    push_underscore_if(&mut new_name, '_', !last_was_underscore);
-                    last_was_underscore = true;
-                }
-                91..=96 => {
-                    push_underscore_if(&mut new_name, '_', !last_was_underscore);
-                    last_was_underscore = true;
-                }
-                123..=127 => {
-                    push_underscore_if(&mut new_name, '_', !last_was_underscore);
-                    last_was_underscore = true;
+                45 => {
+                    // dot
+                    if last_was_ascii {
+                        new_name.push(*byte as char);
+                        last_was_ascii = false;
+                    }
                 }
                 _ => {
                     new_name.push(*byte as char);
-                    last_was_underscore = false;
+                    last_was_ascii = true;
                 }
             }
             idx_grapheme = 0;
@@ -488,7 +527,7 @@ fn clean_name(path: &OsStr, _options: &NotoxArgs) -> OsString {
                     vec_grapheme[2],
                     vec_grapheme[3],
                 ));
-                last_was_underscore = check_similar(curr_char, &mut new_name, last_was_underscore);
+                last_was_ascii = check_similar(curr_char, &mut new_name, last_was_ascii);
                 vec_grapheme = [0; 4];
                 idx_grapheme = 0;
             } else if (224..240).contains(&first_byte) && idx_grapheme == 3 {
@@ -498,14 +537,14 @@ fn clean_name(path: &OsStr, _options: &NotoxArgs) -> OsString {
                     vec_grapheme[1],
                     vec_grapheme[2],
                 ));
-                last_was_underscore = check_similar(curr_char, &mut new_name, last_was_underscore);
+                last_was_ascii = check_similar(curr_char, &mut new_name, last_was_ascii);
                 vec_grapheme = [0; 4];
                 idx_grapheme = 0;
             } else if (128..224).contains(&first_byte) && idx_grapheme == 2 {
                 // two bytes grapheme
                 let curr_char =
                     std::char::from_u32(convert_two_to_u32(vec_grapheme[0], vec_grapheme[1]));
-                last_was_underscore = check_similar(curr_char, &mut new_name, last_was_underscore);
+                last_was_ascii = check_similar(curr_char, &mut new_name, last_was_ascii);
                 vec_grapheme = [0; 4];
                 idx_grapheme = 0;
             }
@@ -516,13 +555,10 @@ fn clean_name(path: &OsStr, _options: &NotoxArgs) -> OsString {
 
 /// Clean a path
 fn clean_path(file_path: &Path, options: &NotoxArgs) -> PathChange {
-    let file_name = match file_path.file_name() {
-        Some(name) => name,
-        None => {
-            return PathChange::Unchanged {
-                path: file_path.to_path_buf(),
-            };
-        }
+    let Some(file_name) = file_path.file_name() else {
+        return PathChange::Unchanged {
+            path: file_path.to_path_buf(),
+        };
     };
     let cleaned_name = clean_name(file_name, options);
     if cleaned_name == file_name {
@@ -539,7 +575,7 @@ fn clean_path(file_path: &Path, options: &NotoxArgs) -> PathChange {
         };
     }
     match std::fs::rename(file_path, &cleaned_path) {
-        Ok(_) => PathChange::Changed {
+        Ok(()) => PathChange::Changed {
             path: file_path.to_path_buf(),
             modified: cleaned_path,
         },
@@ -557,7 +593,7 @@ fn clean_directory(dir_path: &Path, options: &NotoxArgs) -> Vec<PathChange> {
     let mut result_vec = Vec::new();
     let res_dir = clean_path(&dir_path, options);
     if let PathChange::Changed { modified, .. } = &res_dir {
-        dir_path = modified.clone();
+        dir_path.clone_from(modified);
     }
     result_vec.push(res_dir);
     if let Ok(entries) = std::fs::read_dir(&dir_path) {
@@ -572,12 +608,12 @@ fn clean_directory(dir_path: &Path, options: &NotoxArgs) -> Vec<PathChange> {
                         Ok(entry) => Either::Left(entry),
                         Err(e) => Either::Right(e),
                     });
-                error_entries.into_iter().for_each(|e| {
+                for e in error_entries {
                     result_vec.push(PathChange::Error {
                         path: dir_path.clone(),
-                        error: format!("Error reading dir entry of directory {}", e),
-                    })
-                });
+                        error: format!("Error reading dir entry of directory {e}"),
+                    });
+                }
                 ok_entries
             }
             #[cfg(not(feature = "rayon"))]
@@ -626,35 +662,37 @@ fn clean_directory(dir_path: &Path, options: &NotoxArgs) -> Vec<PathChange> {
 }
 
 /// Get the path of a directory
-#[inline(always)]
+#[inline]
 fn get_path_of_dir(dir_path: &str) -> HashSet<PathBuf> {
     match std::fs::read_dir(dir_path) {
         Ok(dir_entries) => dir_entries
             .into_iter()
             .filter_map(Result::ok)
-            .map(|e| e.path().to_path_buf())
+            .map(|e| e.path().clone())
             .collect(),
         Err(_) => HashSet::new(),
     }
 }
 
 /// Show the version
-#[inline(always)]
+#[inline]
 fn show_version() {
     /// Version of the program
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     /// Authors of the program
     const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
-    println!("notox {} by {}", &VERSION, &AUTHORS)
+    println!("notox {VERSION} by {AUTHORS}");
 }
 
 /// Parse the arguments and return the options and the paths to check
 /// # Errors
 /// Return an error if the path is not found
+#[allow(clippy::too_many_lines)]
 pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32> {
     let mut dry_run = true;
-    let mut output = Output::Default;
+    let mut output = NotoxOutput::Default;
     let mut path_to_check: HashSet<PathBuf> = HashSet::new();
+    let mut count_path_args = 0;
     for one_arg in &args[1..] {
         if one_arg == "-d" || one_arg == "--do" {
             dry_run = false;
@@ -677,14 +715,14 @@ pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32>
             #[cfg(feature = "serde")]
             {
                 output = match output {
-                    Output::JsonOutput {
+                    NotoxOutput::JsonOutput {
                         json: json_output,
                         pretty: _,
-                    } => Output::JsonOutput {
+                    } => NotoxOutput::JsonOutput {
                         json: json_output,
                         pretty: true,
                     },
-                    _ => Output::JsonOutput {
+                    _ => NotoxOutput::JsonOutput {
                         json: JsonOutput::JsonDefault,
                         pretty: true,
                     },
@@ -699,11 +737,11 @@ pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32>
             #[cfg(feature = "serde")]
             {
                 output = match output {
-                    Output::JsonOutput { json: _, pretty } => Output::JsonOutput {
+                    NotoxOutput::JsonOutput { json: _, pretty } => NotoxOutput::JsonOutput {
                         json: JsonOutput::JsonOnlyError,
                         pretty,
                     },
-                    _ => Output::JsonOutput {
+                    _ => NotoxOutput::JsonOutput {
                         json: JsonOutput::JsonOnlyError,
                         pretty: false,
                     },
@@ -718,11 +756,11 @@ pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32>
             #[cfg(feature = "serde")]
             {
                 output = match output {
-                    Output::JsonOutput { json: _, pretty } => Output::JsonOutput {
+                    NotoxOutput::JsonOutput { json: _, pretty } => NotoxOutput::JsonOutput {
                         json: JsonOutput::JsonDefault,
                         pretty,
                     },
-                    _ => Output::JsonOutput {
+                    _ => NotoxOutput::JsonOutput {
                         json: JsonOutput::JsonDefault,
                         pretty: false,
                     },
@@ -734,28 +772,28 @@ pub fn parse_args(args: &[String]) -> Result<(NotoxArgs, HashSet<PathBuf>), i32>
                 return Err(2);
             }
         } else if one_arg == "-q" || one_arg == "--quiet" {
-            output = Output::Quiet;
+            output = NotoxOutput::Quiet;
         } else if one_arg == "*" {
             // should not happen with most shells
             let paths = get_path_of_dir(".");
             path_to_check.extend(paths);
+            count_path_args += 1;
         } else if std::fs::metadata(one_arg).is_ok() {
             path_to_check.insert(PathBuf::from(one_arg));
+            count_path_args += 1;
         } else if output.is_verbose() {
-            println!("Cannot find path: {}", one_arg);
+            count_path_args += 1;
+            println!("Cannot find path: {one_arg}");
         }
+    }
+    if count_path_args == 1 && path_to_check.is_empty() {
+        return Err(1);
     }
     if path_to_check.is_empty() {
         let paths = get_path_of_dir(".");
         path_to_check.extend(paths);
     }
     Ok((NotoxArgs { dry_run, output }, path_to_check))
-}
-
-/// Do the program, return the Vector of result
-/// The recommended usage is with the rust struct `Notox::new`
-pub fn notox(notox_args: &NotoxArgs, paths_to_check: &HashSet<PathBuf>) -> Vec<PathChange> {
-    Notox::new(notox_args).run(paths_to_check)
 }
 
 /// Notox struct
@@ -766,30 +804,30 @@ pub struct Notox {
 
 impl Notox {
     /// Create a new Notox instance
-    pub fn new(notox_args: &NotoxArgs) -> Notox {
-        Notox {
-            notox_args: notox_args.clone(),
-        }
+    #[must_use]
+    pub fn new(notox_args: NotoxArgs) -> Notox {
+        Notox { notox_args }
     }
 
-    /// Run from args
+    /// Run from args. Paths needs to exists
     /// # Errors
-    /// Returns error if parse_args fails
+    /// Returns error if [`parse_args`] fails
     pub fn run_from_args(args: &[String]) -> Result<Vec<PathChange>, i32> {
         match parse_args(args) {
-            Ok((notox_args, paths)) => Ok(Self::new(&notox_args).run(&paths)),
+            Ok((notox_args, paths)) => Ok(Self::new(notox_args).run(&paths)),
             Err(code) => Err(code),
         }
     }
 
-    /// Run main from args
+    /// Run main from args. Paths needs to exists
+    #[must_use]
     pub fn run_main_from_args(args: &[String]) -> i32 {
         match parse_args(args) {
             Ok((notox_args, paths)) => {
-                let notox_inst = Self::new(&notox_args);
+                let notox_inst = Self::new(notox_args);
                 let final_res = notox_inst.run(&paths);
                 match notox_inst.print_output(final_res) {
-                    Ok(_) => 0,
+                    Ok(()) => 0,
                     Err(code) => code,
                 }
             }
@@ -797,9 +835,13 @@ impl Notox {
         }
     }
 
-    /// Run the Notox instance
-    pub fn run(&self, paths_to_check: &HashSet<PathBuf>) -> Vec<PathChange> {
-        if self.notox_args.is_vervose() {
+    /// Run the Notox instance. Paths needs to exists
+    #[must_use]
+    pub fn run<S: ::std::hash::BuildHasher>(
+        &self,
+        paths_to_check: &HashSet<PathBuf, S>,
+    ) -> Vec<PathChange> {
+        if self.notox_args.is_verbose() {
             println!("Running with options: {}", &self.notox_args);
         }
         #[cfg(feature = "rayon")]
@@ -809,15 +851,14 @@ impl Notox {
 
         let results = iter
             .map(|one_path| {
-                if self.notox_args.is_vervose() {
+                if self.notox_args.is_verbose() {
                     println!("Checking: {}", one_path.display());
                 }
-                match one_path.is_dir() {
-                    true => clean_directory(one_path, &self.notox_args),
-                    false => {
-                        let one_cleaned = clean_path(one_path, &self.notox_args);
-                        vec![one_cleaned]
-                    }
+                if one_path.is_dir() {
+                    clean_directory(one_path, &self.notox_args)
+                } else {
+                    let one_cleaned = clean_path(one_path, &self.notox_args);
+                    vec![one_cleaned]
                 }
             })
             .flatten();
@@ -829,7 +870,7 @@ impl Notox {
     /// Return an error if the output cannot be serialized
     pub fn print_output(&self, final_res: Vec<PathChange>) -> Result<(), i32> {
         match &self.notox_args.output {
-            Output::Default => {
+            NotoxOutput::Default => {
                 let len = final_res.len();
                 for one_change in final_res {
                     match one_change {
@@ -850,13 +891,13 @@ impl Notox {
                     }
                 }
                 if len == 1 {
-                    println!("{} file checked", len);
+                    println!("{len} file checked");
                 } else {
-                    println!("{} files checked", len);
+                    println!("{len} files checked");
                 }
             }
             #[cfg(feature = "serde")]
-            Output::JsonOutput {
+            NotoxOutput::JsonOutput {
                 json: json_output,
                 pretty: json_pretty,
             } => {
@@ -866,12 +907,9 @@ impl Notox {
                         let mut vec_to_json: Vec<PathChange> = Vec::new();
                         for one_change in final_res {
                             match one_change {
-                                PathChange::Unchanged { .. } => {}
-                                PathChange::Changed { .. } => {}
-                                one_res @ PathChange::Error { .. } => {
-                                    vec_to_json.push(one_res);
-                                }
-                                one_res @ PathChange::ErrorRename { .. } => {
+                                PathChange::Unchanged { .. } | PathChange::Changed { .. } => {}
+                                one_res @ (PathChange::Error { .. }
+                                | PathChange::ErrorRename { .. }) => {
                                     vec_to_json.push(one_res);
                                 }
                             }
@@ -883,15 +921,14 @@ impl Notox {
                     true => serde_json::to_string_pretty(&vec_to_json),
                     false => serde_json::to_string(&vec_to_json),
                 };
-                match json_string {
-                    Ok(stringed) => println!("{}", stringed),
-                    Err(_) => {
-                        println!(r#"{{"error": "Cannot serialize result"}}"#);
-                        return Err(2);
-                    }
+                if let Ok(stringed) = json_string {
+                    println!("{stringed}");
+                } else {
+                    println!(r#"{{"error": "Cannot serialize result"}}"#);
+                    return Err(2);
                 }
             }
-            Output::Quiet => {}
+            NotoxOutput::Quiet => {}
         }
         Ok(())
     }

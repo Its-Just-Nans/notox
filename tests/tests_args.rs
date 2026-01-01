@@ -2,7 +2,7 @@
 mod tests {
     #[cfg(feature = "serde")]
     use notox::JsonOutput;
-    use notox::{NotoxArgs, Output};
+    use notox::{NotoxArgs, NotoxOutput};
 
     #[test]
     fn test_parse_args() {
@@ -11,7 +11,7 @@ mod tests {
                 vec!["notox".to_string(), "README.md".to_string()],
                 NotoxArgs {
                     dry_run: true,
-                    output: Output::Default,
+                    output: NotoxOutput::Default,
                 },
             ),
             (
@@ -22,7 +22,7 @@ mod tests {
                 ],
                 NotoxArgs {
                     dry_run: false,
-                    output: Output::Default,
+                    output: NotoxOutput::Default,
                 },
             ),
             #[cfg(feature = "serde")]
@@ -35,7 +35,7 @@ mod tests {
                 ],
                 NotoxArgs {
                     dry_run: false,
-                    output: Output::JsonOutput {
+                    output: NotoxOutput::JsonOutput {
                         json: JsonOutput::JsonDefault,
                         pretty: false,
                     },
@@ -51,7 +51,7 @@ mod tests {
                 ],
                 NotoxArgs {
                     dry_run: false,
-                    output: Output::JsonOutput {
+                    output: NotoxOutput::JsonOutput {
                         json: JsonOutput::JsonDefault,
                         pretty: false,
                     },
@@ -67,7 +67,7 @@ mod tests {
                 ],
                 NotoxArgs {
                     dry_run: false,
-                    output: Output::JsonOutput {
+                    output: NotoxOutput::JsonOutput {
                         json: JsonOutput::JsonOnlyError,
                         pretty: false,
                     },
@@ -83,7 +83,7 @@ mod tests {
                 ],
                 NotoxArgs {
                     dry_run: false,
-                    output: Output::JsonOutput {
+                    output: NotoxOutput::JsonOutput {
                         json: JsonOutput::JsonOnlyError,
                         pretty: false,
                     },
@@ -99,7 +99,7 @@ mod tests {
                 ],
                 NotoxArgs {
                     dry_run: false,
-                    output: Output::JsonOutput {
+                    output: NotoxOutput::JsonOutput {
                         json: JsonOutput::JsonDefault,
                         pretty: true,
                     },
@@ -115,7 +115,7 @@ mod tests {
                 ],
                 NotoxArgs {
                     dry_run: false,
-                    output: Output::JsonOutput {
+                    output: NotoxOutput::JsonOutput {
                         json: JsonOutput::JsonDefault,
                         pretty: true,
                     },
@@ -125,28 +125,28 @@ mod tests {
                 vec!["notox".to_string(), "-v".to_string()],
                 NotoxArgs {
                     dry_run: true,
-                    output: Output::Default,
+                    output: NotoxOutput::Default,
                 },
             ),
             (
                 vec!["notox".to_string(), "--version".to_string()],
                 NotoxArgs {
                     dry_run: true,
-                    output: Output::Default,
+                    output: NotoxOutput::Default,
                 },
             ),
             (
                 vec!["notox".to_string(), "-q".to_string()],
                 NotoxArgs {
                     dry_run: true,
-                    output: Output::Quiet,
+                    output: NotoxOutput::Quiet,
                 },
             ),
             (
                 vec!["notox".to_string(), "--quiet".to_string()],
                 NotoxArgs {
                     dry_run: true,
-                    output: Output::Quiet,
+                    output: NotoxOutput::Quiet,
                 },
             ),
         ];
@@ -175,7 +175,7 @@ mod tests {
             options,
             NotoxArgs {
                 dry_run: true,
-                output: Output::Default,
+                output: NotoxOutput::Default,
             }
         );
         assert_eq!(vect.len(), 1);
@@ -190,7 +190,7 @@ mod tests {
             options,
             NotoxArgs {
                 dry_run: true,
-                output: Output::Default,
+                output: NotoxOutput::Default,
             }
         );
         let number = std::fs::read_dir(".")

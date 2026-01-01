@@ -18,11 +18,33 @@ notox --do my_path
 | Option                | Description                  |
 | --------------------- | ---------------------------- |
 | `-v`, `--version`     | Prints version information   |
-| `-d`, `--do`          | Do the actions               |
+| `-d`, `--do`          | Do the actions (rename)      |
 | `-q`, `--quiet`       | No output                    |
 | `-j`, `--json`        | Output as JSON               |
 | `-p`, `--json-pretty` | Output as JSON (prettified)  |
 | `-e`, `--json-error`  | Output as JSON (only errors) |
+
+## Usage as lib
+
+```rust
+use std::collections::HashSet;
+use std::path::PathBuf;
+use notox::{Notox, NotoxArgs, NotoxOutput};
+let paths: HashSet<PathBuf> = HashSet::from(["README.md".into(), "Cargo.toml".into()]);
+let notox_args = NotoxArgs {
+    dry_run: true, // change here
+    // if using serde
+    // output: NotoxOutput::JsonOutput {
+    //    json: JsonOutput::JsonDefault,
+    //    pretty: false,
+    // },
+    output: NotoxOutput::Quiet
+};
+let notox_inst = Notox::new(notox_args);
+let res = notox_inst.run(&paths);
+// to print them
+notox_inst.print_output(res);
+```
 
 ## Infos
 
