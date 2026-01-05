@@ -519,6 +519,7 @@ fn clean_name(path: &OsStr, _options: &NotoxArgs) -> OsString {
                     }
                 }
                 0..=44 | 47 | 58..=64 | 91..=96 | 123..=127 => {
+                    // 47 is a slash
                     if last_was_ascii {
                         new_name.push('_');
                         last_was_ascii = false;
