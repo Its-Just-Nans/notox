@@ -52,11 +52,11 @@ mod tests {
             PathBuf::from("my_-.file"),
             PathBuf::from("my#-##.file"),
             PathBuf::from("my.._.file"),
-            PathBuf::from("my?_.-file"),
-            PathBuf::from("my_(___-_-_-?_.-file"),
-            PathBuf::from("my()--~==+-?_.-file"),
-            PathBuf::from("my?_-_.-file"),
-            PathBuf::from("my?_.-file"),
+            PathBuf::from("my?_.file"),
+            PathBuf::from("my_(___-_-_-?_.file"),
+            PathBuf::from("my()--~==+-?_.file"),
+            PathBuf::from("my?_-_.file"),
+            PathBuf::from("my?_.file"),
         ];
         for base_path in paths_to_test {
             let paths = HashSet::from([base_path.clone()]);
@@ -79,6 +79,40 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_rename_multiple_weird_2() {
+        // they have .-file
+        // they will be converted to my-file
+        let paths_to_test = [
+            PathBuf::from("my?_.-file"),
+            PathBuf::from("my_(___-_-_-?_.-file"),
+            PathBuf::from("my()--~==+-?_.-file"),
+            PathBuf::from("my?_-_.-file"),
+            PathBuf::from("my?_.-file"),
+        ];
+        for base_path in paths_to_test {
+            let paths = HashSet::from([base_path.clone()]);
+            let res = Notox::new(TESTS_FIELDS_NOT_DRY_RUN).run(&paths);
+            assert_eq!(res.len(), 1);
+            match &res[0] {
+                PathChange::ErrorRename {
+                    path,
+                    modified,
+                    error,
+                } => {
+                    assert_eq!(path, &base_path);
+                    assert_eq!(modified, &PathBuf::from("my-file"));
+                    assert_eq!(error, "No such file or directory (os error 2)");
+                }
+                _ => {
+                    println!("Result: {:?}", res[0]);
+                    panic!("Expected Renamed")
+                }
+            }
+        }
+    }
+
     #[test]
     fn rename_ascii() {
         let paths = vec![

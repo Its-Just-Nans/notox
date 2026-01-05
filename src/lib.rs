@@ -470,6 +470,9 @@ pub fn convert_two_to_u32(first_byte: u8, second_byte: u8) -> u32 {
 /// Clean a name
 #[inline]
 fn clean_name(path: &OsStr, _options: &NotoxArgs) -> OsString {
+    const MINUS: char = '-'; // 45
+    const DOT: char = '.'; // 46
+
     // for each byte of the path if it's not ascii, replace it with _
     let mut new_name = String::new();
     let mut vec_grapheme: [u8; 4] = [0; 4];
@@ -479,19 +482,38 @@ fn clean_name(path: &OsStr, _options: &NotoxArgs) -> OsString {
         // eprintln!("{} {} {}", byte, *byte as char, last_was_ascii);
         if idx_grapheme == 0 && *byte < 128 {
             match byte {
-                46 => {
+                45 => {
+                    // - Hyphen-minus
                     if last_was_ascii {
-                        new_name.push('.');
+                        new_name.push(MINUS);
                         last_was_ascii = false;
                     } else {
                         match new_name.pop() {
-                            Some('.' | '_') | None => {
-                                // add or re-add the dot
-                                new_name.push('.');
+                            Some(MINUS | '_' | DOT) | None => {
+                                // add or re-add the minus
+                                new_name.push(MINUS);
                             }
                             Some(last_char) => {
                                 new_name.push(last_char);
-                                new_name.push('.');
+                                new_name.push(MINUS);
+                            }
+                        }
+                    }
+                }
+                46 => {
+                    // . (dot)
+                    if last_was_ascii {
+                        new_name.push(DOT);
+                        last_was_ascii = false;
+                    } else {
+                        match new_name.pop() {
+                            Some(DOT | '_' | MINUS) | None => {
+                                // add or re-add the dot
+                                new_name.push(DOT);
+                            }
+                            Some(last_char) => {
+                                new_name.push(last_char);
+                                new_name.push(DOT);
                             }
                         }
                     }
@@ -499,13 +521,6 @@ fn clean_name(path: &OsStr, _options: &NotoxArgs) -> OsString {
                 0..=44 | 47 | 58..=64 | 91..=96 | 123..=127 => {
                     if last_was_ascii {
                         new_name.push('_');
-                        last_was_ascii = false;
-                    }
-                }
-                45 => {
-                    // dot
-                    if last_was_ascii {
-                        new_name.push(*byte as char);
                         last_was_ascii = false;
                     }
                 }
